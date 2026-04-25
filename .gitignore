@@ -1,0 +1,20 @@
+# Pastas pesadas do Node e React
+node_modules/
+dist/
+build/
+
+# Pastas de compilados do Java
+target/
+.mvn/
+
+# Arquivos de editores de código
+.vscode/
+.idea/
+
+# Arquivos de Sistema Operacional
+.DS_Store
+Thumbs.db
+
+
+.env
+.env.local
