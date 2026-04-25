@@ -1,0 +1,36 @@
+version: '3.8'
+
+services:
+  # Ambiente do Backend (Java)
+  api-java:
+    image: eclipse-temurin:17-jdk
+    container_name: gestao_horarios_java
+    working_dir: /app
+    # Espelha a pasta local api-java para dentro do container
+    volumes:
+      - ./api-java:/app
+    # Libera a porta padrão do Spring Boot
+    ports:
+      - "8080:8080" 
+
+  # Ambiente do Intermediário/BFF (Node.js)
+  middleware-node:
+    image: node:18
+    container_name: gestao_horarios_node
+    working_dir: /app
+    volumes:
+      - ./middleware-node:/app
+    # Libera a porta padrão do Express/Node
+    ports:
+      - "3000:3000"
+
+  # Ambiente do Frontend (React/Electron precisa do Node para rodar/compilar)
+  desktop-app:
+    image: node:18
+    container_name: gestao_horarios_frontend
+    working_dir: /app
+    volumes:
+      - ./desktop-app:/app
+    # Libera a porta padrão do React (Vite)
+    ports:
+      - "5173:5173"
