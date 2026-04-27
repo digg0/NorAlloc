@@ -1,0 +1,60 @@
+version: '3.8'
+
+services:
+  # O Banco de Dados (PostgreSQL)
+  database:
+    image: postgres:15-alpine
+    container_name: gestao_horarios_db
+    restart: always
+    environment:
+      # Puxa as senhas daquele arquivo .env que criamos
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
+    ports:
+      - "5432:5432"
+    volumes:
+      # Salva os dados permanentemente numa pasta oculta do Docker
+      - pgdata:/var/lib/postgresql/data
+
+  # Ambiente do Backend (Java)
+  api-java:
+    image: eclipse-temurin:17-jdk
+    container_name: gestao_horarios_java
+    working_dir: /app
+    # Espelha a pasta local api-java para dentro do container
+    volumes:
+      - ./api-java:/app
+    # Libera a porta padrão do Spring Boot
+    ports:
+      - "8080:8080" 
+    depends_on:
+      - database # Faz o Java esperar o banco ligar primeiro
+    command: sh -c "chmod +x mvnw && ./mvnw spring-boot:run"  
+
+  # Ambiente do Intermediário/BFF (Node.js)
+  middleware-node:
+    image: node:18
+    container_name: gestao_horarios_node
+    working_dir: /app
+    volumes:
+      - ./middleware-node:/app
+    # Libera a porta padrão do Express/Node
+    ports:
+      - "3000:3000"
+    command: sh -c "npm install && npm start"
+
+  # Ambiente do Frontend (React/Electron precisa do Node para rodar/compilar)
+  desktop-app:
+    image: node:18
+    container_name: gestao_horarios_frontend
+    working_dir: /app
+    volumes:
+      - ./desktop-app:/app
+    # Libera a porta padrão do React (Vite)
+    ports:
+      - "5173:5173"
+
+# Declaração do volume persistente do banco
+volumes:
+  pgdata:

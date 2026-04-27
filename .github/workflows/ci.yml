@@ -1,0 +1,45 @@
+name: CI Inteligente do Projeto
+
+on:
+  pull_request:
+    branches: [ "main", "develop" ]
+
+jobs:
+  validar-node:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          
+      - name: Instalar Node (Automático)
+        run: |
+          cd middleware-node
+          if [ -f "package.json" ]; then
+            echo "📦 package.json encontrado! Instalando dependências..."
+            npm install
+          else
+            echo "⏳ Nenhum package.json ainda. Ignorando instalação por enquanto."
+          fi
+
+  validar-java:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - uses: actions/setup-java@v3
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          
+      - name: Compilar Java (Automático)
+        run: |
+          cd api-java
+          if [ -f "pom.xml" ]; then
+            echo "☕ pom.xml encontrado! Compilando o projeto..."
+            mvn clean package
+          else
+            echo "⏳ Nenhum pom.xml ainda. Ignorando compilação por enquanto."
+          fi
