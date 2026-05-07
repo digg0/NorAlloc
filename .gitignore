@@ -1,20 +1,19 @@
-# Pastas pesadas do Node e React
+# Senhas e Variáveis de Ambiente (CRÍTICO)
+.env
+
+# Lixo do Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+env/
+
+# Lixo do Node.js / React
 node_modules/
 dist/
-build/
-
-# Pastas de compilados do Java
-target/
-.mvn/
-
-# Arquivos de editores de código
-.vscode/
-.idea/
+npm-debug.log
 
 # Arquivos de Sistema Operacional
 .DS_Store
 Thumbs.db
-
-
-.env
-.env.local
