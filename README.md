@@ -356,39 +356,6 @@ Se tudo estiver verde ✅, o PR poderá ser aprovado.
 docker compose up --build
 ```
 
----
-
-## Remover tudo completamente
-
-```bash
-docker compose down -v
-```
-
-⚠️ Isso remove também os volumes do banco de dados.
-
----
-
-## Ver containers ativos
-
-```bash
-docker ps
-```
-
----
-
-## Entrar dentro de um container
-
-### Backend
-
-```bash
-docker exec -it backend bash
-```
-
-### Frontend
-
-```bash
-docker exec -it frontend sh
-```
 
 ---
 
@@ -425,6 +392,6 @@ docker exec -it frontend sh
 
 # 👨‍💻 Equipe
 
-Projeto mantido pela equipe de Infraestrutura e Desenvolvimento.
+Projeto mantido pela equipe de Infraestrutura e Desenvolvimento da Nordev.
 
 ---
