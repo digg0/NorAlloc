@@ -2,5 +2,8 @@ fastapi
 uvicorn[standard]
 sqlalchemy
 psycopg2-binary
+asyncpg          
+alembic           
 python-multipart
 pydantic-settings
+# pyjwt            # <- (Opcional/A definir) Adicione a lib de JWT de sua escolha
