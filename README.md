@@ -1,71 +1,430 @@
 # 📅 Sistema de Gestão de Horários
 
-Bem-vindos ao repositório oficial do Sistema de Gestão de Horários. Este projeto utiliza uma arquitetura de **Monorepo**, garantindo que o Frontend, BFF e Backend convivam no mesmo repositório com versionamento unificado, mas operando em ambientes isolados via Docker.
+Bem-vindos ao repositório oficial do **Sistema de Gestão de Horários**.
 
-## 🏗️ Estrutura do Projeto (Quem mexe onde?)
-
-Nossa arquitetura está dividida nas seguintes pastas:
-
-* 🖥️ **`desktop-app/` (O Salão):** Interface do usuário. Desenvolvido com React + Electron. (Frontend)
-* ⚙️ **`middleware-node/` (O Balcão):** Nosso BFF (Backend For Frontend). Recebe os pedidos do app, filtra e se comunica com o Java. Desenvolvido em Node.js (v18).
-* ☕ **`api-java/` (A Cozinha):** Backend Core e regras de negócio. Desenvolvido em Java (v17) + Spring Boot.
-* 🗄️ **`database/` (O Estoque):** Scripts estruturais e tabelas do PostgreSQL. (O banco de dados real roda em um volume oculto do Docker).
+Este projeto utiliza uma arquitetura **Monorepo**, garantindo que Frontend, Backend e Banco de Dados convivam no mesmo repositório com versionamento unificado, mas operando em ambientes isolados via Docker.
 
 ---
 
-## 🚀 Como rodar o projeto na sua máquina (Dia 1)
+# 🏗️ Estrutura do Projeto (Quem mexe onde?)
 
-Graças à nossa infraestrutura conteinerizada, **você não precisa instalar Java, Node ou Postgres no seu computador**. O Docker fará todo o trabalho pesado.
+Nossa arquitetura está organizada nas seguintes pastas:
 
-### Pré-requisitos:
-1. Ter o [Git](https://git-scm.com/) instalado.
-2. Ter o [Docker Desktop](https://www.docker.com/products/docker-desktop/) instalado e rodando.
+```bash
+.github/
+└── workflows/              # Pipelines e automações do GitHub Actions
 
-### Passo a Passo:
+backend-python/             # Backend principal da aplicação (Python)
 
-1. **Clone o repositório:**
-   ```bash
-   git clone <COLOQUE-O-LINK-DO-SEU-GITHUB-AQUI>
-   ```
+database/                   # Scripts SQL e estrutura do PostgreSQL
 
-2. **Entre na pasta do projeto:**
-   ```bash
-   cd gestao-horarios
-   ```
+frontend-react/             # Frontend da aplicação desenvolvido em React
 
-3. **Mude para a branch de desenvolvimento (Chão de fábrica):**
-   ```bash
-   git checkout develop
-   ```
+.env                        # Variáveis de ambiente locais
+.env.example                # Exemplo de configuração das variáveis
 
-4. **Suba todo o ambiente mágico:**
-   ```bash
-   docker-compose up -d
-   ```
-   *(O parâmetro `-d` roda os servidores em segundo plano para não travar o seu terminal).*
+.gitignore                  # Arquivos ignorados pelo Git
 
-Pronto! Os containers do Java, Node e Banco de Dados já estão rodando isolados e mapeados para as pastas do seu computador. Tudo o que você codar na sua pasta será refletido imediatamente no container.
+docker-compose.yml          # Orquestração dos containers Docker
+
+README.md                   # Documentação principal do projeto
+```
 
 ---
 
-## 🛠️ Regras de Fluxo de Trabalho (GitFlow)
+# 🚀 Como rodar o projeto na sua máquina (Dia 1)
 
-Para mantermos o projeto organizado e a esteira de CI/CD funcionando, siga estas regras:
+Graças à nossa infraestrutura conteinerizada, **você não precisa instalar Python, Node ou PostgreSQL no seu computador**.
 
-1. **Nunca comite na `main` ou na `develop`.**
-
-2. Vai criar uma tela nova ou consertar um erro? Crie uma branch a partir da `develop`:
-   ```bash
-   git checkout -b feature/nome-da-sua-tela
-   ```
-3. Use o padrão **Conventional Commits** nas suas mensagens:
-   * `feat: cria botão de login` (Funcionalidade nova)
-   * `fix: corrige erro na listagem` (Correção de bug)
-   * `chore: atualiza pacotes` (Manutenção/Organização)
-
-4. Quando terminar, faça o Push da sua branch e abra um **Pull Request (PR) apontando para a `develop`**.
-
-5. Nossos robôs do GitHub Actions vão testar o seu código automaticamente. Se tudo ficar verde, o PR pode ser aprovado!
+O Docker fará todo o trabalho pesado.
 
 ---
-*Mantido pela equipe de Infraestrutura.*
+
+# ✅ Pré-requisitos
+
+Antes de começar, você precisa ter instalado na sua máquina:
+
+## 1️⃣ Git
+
+Download oficial:
+
+```txt
+https://git-scm.com/
+```
+
+Verifique se está instalado:
+
+```bash
+git --version
+```
+
+---
+
+## 2️⃣ Docker Desktop
+
+Download oficial:
+
+```txt
+https://www.docker.com/products/docker-desktop/
+```
+
+Verifique se está rodando:
+
+```bash
+docker --version
+docker compose version
+```
+
+---
+
+# 📥 Clonando o Projeto
+
+## 1️⃣ Clone o repositório
+
+```bash
+git clone <COLOQUE-O-LINK-DO-SEU-GITHUB-AQUI>
+```
+
+---
+
+## 2️⃣ Entre na pasta do projeto
+
+```bash
+cd gestao-horarios
+```
+
+---
+
+## 3️⃣ Vá para a branch de desenvolvimento
+
+```bash
+git checkout develop
+```
+
+---
+
+# ⚙️ Configuração do Ambiente
+
+## Copie o arquivo `.env.example`
+
+Crie seu arquivo `.env` local:
+
+### Linux / Mac
+
+```bash
+cp .env.example .env
+```
+
+### Windows (PowerShell)
+
+```powershell
+copy .env.example .env
+```
+
+---
+
+# 🐳 Docker — Primeira Execução
+
+## 🔥 IMPORTANTE
+
+Na primeira vez que rodar o projeto, utilize:
+
+```bash
+docker compose up --build
+```
+
+Esse comando irá:
+
+- Construir todas as imagens Docker
+- Instalar dependências automaticamente
+- Criar os containers
+- Configurar a rede interna
+- Inicializar banco de dados
+- Subir backend e frontend
+
+⚠️ Esse processo pode demorar alguns minutos na primeira execução.
+
+---
+
+# ⚡ Execuções Futuras
+
+Depois que as imagens já estiverem criadas, utilize:
+
+```bash
+docker compose up -d
+```
+
+O parâmetro `-d` executa os containers em segundo plano.
+
+---
+
+# 🎯 Rodando Apenas Um Serviço
+
+Você também pode subir apenas um container específico.
+
+---
+
+## 🖥️ Subir apenas o Frontend
+
+```bash
+docker compose up -d frontend
+```
+
+---
+
+## ⚙️ Subir apenas o Backend
+
+```bash
+docker compose up -d backend
+```
+
+---
+
+## 🗄️ Subir apenas o Banco de Dados
+
+```bash
+docker compose up -d database
+```
+
+---
+
+# 🛑 Parando os Containers
+
+Para parar todos os containers:
+
+```bash
+docker compose down
+```
+
+---
+
+# 🔄 Reiniciando os Containers
+
+```bash
+docker compose restart
+```
+
+---
+
+# 📜 Visualizando Logs
+
+## Logs de todos os serviços
+
+```bash
+docker compose logs -f
+```
+
+---
+
+## Logs apenas do backend
+
+```bash
+docker compose logs -f backend
+```
+
+---
+
+## Logs apenas do frontend
+
+```bash
+docker compose logs -f frontend
+```
+
+---
+
+# 🌐 Endereços da Aplicação
+
+Após subir os containers:
+
+| Serviço | URL |
+|---|---|
+| Frontend | http://localhost:3000 |
+| Backend | http://localhost:8000 |
+| PostgreSQL | localhost:5432 |
+
+---
+
+# 🛠️ Fluxo de Trabalho (GitFlow)
+
+Para mantermos o projeto organizado e a esteira de CI/CD funcionando corretamente, siga estas regras.
+
+---
+
+# ❌ Nunca faça commit diretamente em:
+
+- `main`
+- `develop`
+
+---
+
+# 🌱 Sempre crie uma branch nova
+
+Exemplo:
+
+```bash
+git checkout -b feature/nome-da-feature
+```
+
+---
+
+# ✍️ Padrão de Commits (Conventional Commits)
+
+Utilize os padrões abaixo:
+
+---
+
+## ✨ Nova funcionalidade
+
+```bash
+feat: cria tela de login
+```
+
+---
+
+## 🐛 Correção de bug
+
+```bash
+fix: corrige erro de autenticação
+```
+
+---
+
+## 🧹 Organização / manutenção
+
+```bash
+chore: atualiza dependências
+```
+
+---
+
+## ♻️ Refatoração
+
+```bash
+refactor: melhora estrutura da autenticação
+```
+
+---
+
+## 📚 Documentação
+
+```bash
+docs: atualiza README
+```
+
+---
+
+# 🔄 Pull Requests
+
+Quando finalizar sua tarefa:
+
+1. Faça commit das alterações
+2. Faça push da sua branch
+3. Abra um Pull Request
+4. Direcione o PR para `develop`
+
+---
+
+# 🤖 CI/CD Automático
+
+Nossos workflows do GitHub Actions executam automaticamente:
+
+- Testes
+- Build da aplicação
+- Verificações de qualidade
+- Lint
+- Validação de PR
+
+Se tudo estiver verde ✅, o PR poderá ser aprovado.
+
+---
+
+# 📌 Observações Importantes
+
+- Os containers compartilham os arquivos locais via volumes Docker.
+- Toda alteração feita no código é refletida automaticamente no container.
+- O banco PostgreSQL utiliza persistência via volume Docker.
+- Não é necessário instalar dependências localmente.
+- Toda a stack roda isolada via containers.
+
+---
+
+# 🧹 Comandos Úteis
+
+## Rebuildar os containers
+
+```bash
+docker compose up --build
+```
+
+---
+
+## Remover tudo completamente
+
+```bash
+docker compose down -v
+```
+
+⚠️ Isso remove também os volumes do banco de dados.
+
+---
+
+## Ver containers ativos
+
+```bash
+docker ps
+```
+
+---
+
+## Entrar dentro de um container
+
+### Backend
+
+```bash
+docker exec -it backend bash
+```
+
+### Frontend
+
+```bash
+docker exec -it frontend sh
+```
+
+---
+
+# 📂 Tecnologias Utilizadas
+
+## Frontend
+
+- React
+- Vite
+- JavaScript
+
+---
+
+## Backend
+
+- Python
+- FastAPI
+
+---
+
+## Banco de Dados
+
+- PostgreSQL
+
+---
+
+## DevOps
+
+- Docker
+- Docker Compose
+- GitHub Actions
+
+---
+
+# 👨‍💻 Equipe
+
+Projeto mantido pela equipe de Infraestrutura e Desenvolvimento.
+
+---
