@@ -1,15 +1,24 @@
 from fastapi import FastAPI
 import os
 
-app = FastAPI(title="Gestão de Horários - API")
+from app.core.database import Base, engine
+from app.api.routers import coordenadores
+
+
+Base.metadata.create_all(bind=engine)
+
+app = FastAPI(
+    title="NorAlloc - API",
+    description="Sistema de Gestão e Alocação de Horários - Módulo Admin",
+    version="1.0.0"
+)
+
+
+app.include_router(coordenadores.router)
 
 @app.get("/")
 def read_root():
-    return {
-        "status": "Online",
-        "mensagem": "Backend Python (FastAPI) rodando com sucesso!",
-        "database_url": os.getenv("DATABASE_URL")
-    }
+    return {"status": "Online", "mensagem": "Backend FastAPI funcionando!"}
 
 @app.get("/health")
 def health_check():
