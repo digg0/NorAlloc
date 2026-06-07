@@ -6,25 +6,24 @@ from app.core.database import get_db
 from app.models.disciplina import Disciplina
 from app.schemas.disciplina import DisciplinaCreate, DisciplinaResponse
 
+# Mantemos o prefix normal
 router = APIRouter(prefix="/api/disciplinas", tags=["Módulo de Disciplinas"])
 
-@router.post("/", response_model=DisciplinaResponse, status_code=status.HTTP_201_CREATED)
+# 1. CRIAR (POST) - Sem a barra! (Fica exatamente /api/disciplinas)
+@router.post("", response_model=DisciplinaResponse, status_code=status.HTTP_201_CREATED)
 def criar_disciplina(disciplina: DisciplinaCreate, db: Session = Depends(get_db)):
-    if disciplina.codigo:
-        db_disciplina = db.query(Disciplina).filter(Disciplina.codigo == disciplina.codigo).first()
-        if db_disciplina:
-            raise HTTPException(status_code=400, detail="Código de disciplina já cadastrado.")
-    
     nova_disciplina = Disciplina(**disciplina.dict())
     db.add(nova_disciplina)
     db.commit()
-    db.refresh(nova_disciplina) 
+    db.refresh(nova_disciplina)
     return nova_disciplina
 
-@router.get("/", response_model=List[DisciplinaResponse])
+# 2. LISTAR (GET) - Sem a barra! (Fica exatamente /api/disciplinas)
+@router.get("", response_model=List[DisciplinaResponse])
 def listar_disciplinas(db: Session = Depends(get_db)):
     return db.query(Disciplina).all()
 
+# 3. ATUALIZAR (PUT)
 @router.put("/{disciplina_id}", response_model=DisciplinaResponse)
 def atualizar_disciplina(disciplina_id: int, disciplina_atualizada: DisciplinaCreate, db: Session = Depends(get_db)):
     db_disciplina = db.query(Disciplina).filter(Disciplina.id == disciplina_id).first()
@@ -38,6 +37,7 @@ def atualizar_disciplina(disciplina_id: int, disciplina_atualizada: DisciplinaCr
     db.refresh(db_disciplina)
     return db_disciplina
 
+# 4. EXCLUIR (DELETE)
 @router.delete("/{disciplina_id}", status_code=status.HTTP_204_NO_CONTENT)
 def deletar_disciplina(disciplina_id: int, db: Session = Depends(get_db)):
     db_disciplina = db.query(Disciplina).filter(Disciplina.id == disciplina_id).first()

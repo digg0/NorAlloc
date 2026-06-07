@@ -1,16 +1,15 @@
 from pydantic import BaseModel
-from typing import Optional
 
 class DisciplinaCreate(BaseModel):
+    curso_id: int
     nome: str
     carga_horaria: int
-    codigo: Optional[str] = None
 
 class DisciplinaResponse(BaseModel):
     id: int
+    curso_id: int
     nome: str
     carga_horaria: int
-    codigo: Optional[str] = None
 
     class Config:
         from_attributes = True

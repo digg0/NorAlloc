@@ -1,5 +1,5 @@
 from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware # 1. Adicione esta importação
+from fastapi.middleware.cors import CORSMiddleware 
 import os
 
 from app.core.database import Base, engine
