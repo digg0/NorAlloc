@@ -7,6 +7,7 @@ from app.api.routers import coordenadores
 from app.api.routers import disponibilidade
 from app.api.routers import disciplinas 
 
+from app.models import *
 
 Base.metadata.create_all(bind=engine)
 
