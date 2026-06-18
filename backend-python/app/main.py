@@ -7,6 +7,7 @@ from app.api.routers import coordenadores
 from app.api.routers import disponibilidade
 from app.api.routers import disciplinas 
 
+from app.api.routers import horarios
 from app.models import *
 
 Base.metadata.create_all(bind=engine)
@@ -29,6 +30,7 @@ app.add_middleware(
 app.include_router(coordenadores.router)
 app.include_router(disponibilidade.router)
 app.include_router(disciplinas.router)
+app.include_router(horarios.router)
 
 @app.get("/")
 def read_root():
