@@ -4,6 +4,7 @@ import os
 from app.core.database import Base, engine
 from app.api.routers import coordenadores
 from app.api.routers import disponibilidade
+from app.api.routers import cursos
 from app.models import *
 
 Base.metadata.create_all(bind=engine)
@@ -17,6 +18,7 @@ app = FastAPI(
 
 app.include_router(coordenadores.router)
 app.include_router(disponibilidade.router)
+app.include_router(cursos.router)
 
 @app.get("/")
 def read_root():
