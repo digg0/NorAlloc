@@ -12,6 +12,7 @@ from app.api.routers import coordenadores
 from app.api.routers import disponibilidade
 from app.api.routers import disciplinas 
 from app.api.routers import horarios
+from app.api.routers import ofertas
 from app.api.routers import disponibilidade_turma
 
 Base.metadata.create_all(bind=engine)
@@ -35,6 +36,7 @@ app.include_router(coordenadores.router)
 app.include_router(disponibilidade.router)
 app.include_router(disciplinas.router)
 app.include_router(horarios.router)
+app.include_router(ofertas.router)
 app.include_router(disponibilidade_turma.router)
 
 @app.get("/")
