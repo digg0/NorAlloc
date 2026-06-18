@@ -3,12 +3,16 @@ from fastapi.middleware.cors import CORSMiddleware
 import os
 
 from app.core.database import Base, engine
+
+# 1. IMPORTA OS MODELOS PRIMEIRO (Evita conflitos de nomes)
+from app.models import *
+
+# 2. IMPORTA OS ROUTERS DEPOIS
 from app.api.routers import coordenadores
 from app.api.routers import disponibilidade
 from app.api.routers import disciplinas 
-
 from app.api.routers import horarios
-from app.models import *
+from app.api.routers import disponibilidade_turma
 
 Base.metadata.create_all(bind=engine)
 
@@ -18,7 +22,7 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# 2. Cole este bloco de configuração do CORS aqui
+# Configuração do CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"], # Permite requisições de qualquer frontend
@@ -31,6 +35,7 @@ app.include_router(coordenadores.router)
 app.include_router(disponibilidade.router)
 app.include_router(disciplinas.router)
 app.include_router(horarios.router)
+app.include_router(disponibilidade_turma.router)
 
 @app.get("/")
 def read_root():
