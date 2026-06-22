@@ -1,0 +1,541 @@
+<body>
+  
+  <h2 class="sr-only">Documentação consolidada do projeto NORDEV — Sistema de Alocação Acadêmica, contendo tabela mestre de requisitos funcionais, requisitos não funcionais e matriz de regras de negócio.</h2>
+  
+  <style>
+    :root {
+      --nordev-orange: #D85A30;
+  --nordev-orange-light: #FAECE7;
+  --nordev-orange-dark: #4A1B0C;
+}
+* { box-sizing: border-box; margin: 0; padding: 0 }
+body { font-size: 16px; font-family: Arial, Helvetica, sans-serif; box-sizing: border-box; padding: 20; }
+
+.doc-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 1.25rem 0 1rem;
+  border-bottom: 2px solid var(--nordev-orange);
+  margin-bottom: 1.5rem;
+}
+.doc-badge {
+  background: var(--nordev-orange-light);
+  color: var(--nordev-orange);
+  font-size: 11px;
+  font-weight: 500;
+  padding: 3px 10px;
+  border-radius: 20px;
+  white-space: nowrap;
+}
+.doc-title { font-size: 18px; font-weight: 500; color: var(--color-text-primary); }
+.doc-subtitle { font-size: 12px; color: var(--color-text-secondary); margin-top: 2px; }
+
+.section-title {
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--color-text-primary);
+  margin: 1.75rem 0 0.75rem;
+  padding-bottom: 6px;
+  border-bottom: 0.5px solid var(--color-border-secondary);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.section-num {
+  background: var(--nordev-orange);
+  color: white;
+  font-size: 11px;
+  font-weight: 500;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.stats-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+  gap: 8px;
+  margin-bottom: 1.25rem;
+}
+.stat-card {
+  background: var(--color-background-secondary);
+  border-radius: var(--border-radius-md);
+  padding: 10px 12px;
+  text-align: center;
+}
+.stat-num { font-size: 22px; font-weight: 500; color: var(--nordev-orange); }
+.stat-label { font-size: 11px; color: var(--color-text-secondary); margin-top: 2px; }
+
+.module-group { margin-bottom: 1.25rem; padding: 5; }
+.module-header {
+  background: var(--nordev-orange-light);
+  color: var(--nordev-orange-dark);
+  font-size: 12px;
+  font-weight: 500;
+  padding: 6px 12px;
+  border-radius: var(--border-radius-md) var(--border-radius-md) 0 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border: 0.5px solid rgba(216,90,48,0.3);
+  border-bottom: none;
+}
+.mod-count {
+  font-size: 11px;
+  background: white;
+  color: var(--nordev-orange);
+  padding: 1px 7px;
+  border-radius: 10px;
+  font-weight: 500;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  table-layout: fixed;
+}
+.req-table { border: 0.5px solid var(--color-border-tertiary); border-top: none; border-radius: 0 0 var(--border-radius-md) var(--border-radius-md); overflow: hidden; }
+.req-table thead tr { background: var(--color-background-secondary); }
+.req-table th {
+  padding: 6px 10px;
+  text-align: left;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  font-size: 11px;
+  border-bottom: 0.5px solid var(--color-border-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+.req-table td {
+  padding: 7px 10px;
+  color: var(--color-text-primary);
+  vertical-align: top;
+  border-bottom: 0.5px solid var(--color-border-tertiary);
+  line-height: 1.5;
+}
+.req-table tr:last-child td { border-bottom: none; }
+.req-table tr:hover td { background: var(--color-background-secondary); }
+
+.col-id { width: 60px; }
+/* .col-desc { } */
+.col-pri { width: 70px; }
+.col-mod { width: 90px; }
+
+.badge {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 500;
+  padding: 2px 7px;
+  border-radius: 10px;
+  white-space: nowrap;
+}
+.badge-alta { background: #FCEBEB; color: #A32D2D; }
+.badge-media { background: #FAEEDA; color: #633806; }
+.badge-baixa { background: #EAF3DE; color: #3B6D11; }
+.badge-norm { background: #E6F1FB; color: #0C447C; }
+
+.id-code {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--color-text-secondary);
+  background: var(--color-background-secondary);
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+
+.rnf-table .col-id { width: 68px; }
+.rnf-table .col-cat { width: 100px; }
+.rnf-table .col-crit { width: 90px; }
+
+.rn-table .col-rn { width: 60px; }
+.rn-table .col-cat { width: 120px; }
+/* .rn-table .col-reg { } */
+.rn-table .col-imp { width: 100px; }
+
+.note {
+  font-size: 11px;
+  color: var(--color-text-secondary);
+  padding: 8px 12px;
+  background: var(--color-background-secondary);
+  border-radius: var(--border-radius-md);
+  margin-top: 8px;
+  border-left: 3px solid var(--nordev-orange);
+}
+
+.section-summary {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+}
+.summary-pill {
+  font-size: 11px;
+  color: var(--color-text-secondary);
+  background: var(--color-background-secondary);
+  padding: 3px 10px;
+  border-radius: 20px;
+  border: 0.5px solid var(--color-border-tertiary);
+}
+.summary-pill strong { color: var(--color-text-primary); }
+</style>
+
+<div class="doc-header">
+  <div>
+    <div class="doc-title">NORDEV — Sistema de Alocação Acadêmica</div>
+    <div class="doc-subtitle">Documentação Técnica Consolidada · Versão 1.2 · IFCE Campus Tauá</div>
+  </div>
+  <div style="margin-left:auto; display:flex; gap:6px; flex-wrap:wrap; justify-content:flex-end;">
+    <span class="doc-badge">v1.2</span>
+    <span class="doc-badge">69 RF</span>
+    <span class="doc-badge">8 RNF</span>
+    <span class="doc-badge">5 RN</span>
+  </div>
+</div>
+
+<div class="stats-row">
+  <div class="stat-card"><div class="stat-num">69</div><div class="stat-label">Req. Funcionais</div></div>
+  <div class="stat-card"><div class="stat-num">11</div><div class="stat-label">Módulos</div></div>
+  <div class="stat-card"><div class="stat-num">8</div><div class="stat-label">Req. Não Funcionais</div></div>
+  <div class="stat-card"><div class="stat-num">5</div><div class="stat-label">Regras de Negócio</div></div>
+  <div class="stat-card"><div class="stat-num">45</div><div class="stat-label">Prioridade Alta</div></div>
+</div>
+
+<div class="section-title"><span class="section-num">1</span> Tabela Mestre de Módulos — Requisitos Funcionais</div>
+
+<div class="section-summary">
+  <span class="summary-pill"><strong>Alta</strong> 45 requisitos</span>
+  <span class="summary-pill"><strong>Média</strong> 18 requisitos</span>
+  <span class="summary-pill"><strong>Baixa</strong> 5 requisitos</span>
+  <span class="summary-pill"><strong>Normativo</strong> RF51–RF54 (Módulo 6)</span>
+</div>
+
+<!-- Módulo 0 -->
+<div class="module-group">
+  <div class="module-header">Módulo 0 — Autenticação <span class="mod-count">3 requisitos</span></div>
+  <div class="req-table">
+    <table>
+      <thead><tr><th class="col-id">ID</th><th class="col-desc">Descrição</th><th class="col-pri">Prioridade</th><th class="col-mod">Módulo</th></tr></thead>
+      <tbody>
+        <tr><td><span class="id-code">RF55</span></td><td>Exibir campo de senha com opção de alternância de visibilidade (mostrar/ocultar), permitindo ao usuário visualizar o que está digitando.</td><td><span class="badge badge-alta">Alta</span></td><td>Autenticação</td></tr>
+        <tr><td><span class="id-code">RF56</span></td><td>Exibir campo de login (usuário/e-mail) de forma destacada na tela de acesso ao sistema, com suporte a autocompletar.</td><td><span class="badge badge-alta">Alta</span></td><td>Autenticação</td></tr>
+        <tr><td><span class="id-code">RF57</span></td><td>Validar credenciais de login e senha antes de conceder acesso ao sistema, exibindo mensagem de erro em caso de falha.</td><td><span class="badge badge-alta">Alta</span></td><td>Autenticação</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Módulo 1 -->
+<div class="module-group">
+  <div class="module-header">Módulo 1 — Dashboard <span class="mod-count">6 requisitos</span></div>
+  <div class="req-table">
+    <table>
+      <thead><tr><th class="col-id">ID</th><th class="col-desc">Descrição</th><th class="col-pri">Prioridade</th><th class="col-mod">Módulo</th></tr></thead>
+      <tbody>
+        <tr><td><span class="id-code">RF01</span></td><td>Exibir dashboard principal com dados consolidados do processo de alocação em andamento.</td><td><span class="badge badge-alta">Alta</span></td><td>Dashboard</td></tr>
+        <tr><td><span class="id-code">RF02</span></td><td>Exibir indicadores acadêmicos: totais de semestres ativos, disciplinas e professores cadastrados.</td><td><span class="badge badge-alta">Alta</span></td><td>Dashboard</td></tr>
+        <tr><td><span class="id-code">RF03</span></td><td>Exibir lista dos semestres cadastrados mais recentemente (até 5), com acesso direto a cada um.</td><td><span class="badge badge-media">Média</span></td><td>Dashboard</td></tr>
+        <tr><td><span class="id-code">RF04</span></td><td>Iniciar novo processo de alocação acadêmica a partir do botão 'Novo Processo' no dashboard, selecionando um curso e gerando horários para todos os semestres desse curso.</td><td><span class="badge badge-alta">Alta</span></td><td>Dashboard</td></tr>
+        <tr><td><span class="id-code">RF05</span></td><td>Exibir menu lateral de navegação com acesso a todos os módulos do sistema.</td><td><span class="badge badge-alta">Alta</span></td><td>Dashboard</td></tr>
+        <tr><td><span class="id-code">RF69</span></td><td>Exibir visões do dashboard e do menu de navegação de acordo com o nível de permissão do usuário, ocultando funcionalidades não autorizadas.</td><td><span class="badge badge-baixa">Baixa</span></td><td>Dashboard</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Módulo 2 -->
+<div class="module-group">
+  <div class="module-header">Módulo 2 — Cadastro de Semestre <span class="mod-count">6 requisitos</span></div>
+  <div class="req-table">
+    <table>
+      <thead><tr><th class="col-id">ID</th><th class="col-desc">Descrição</th><th class="col-pri">Prioridade</th><th class="col-mod">Módulo</th></tr></thead>
+      <tbody>
+        <tr><td><span class="id-code">RF06</span></td><td>Cadastrar novo semestre acadêmico com nome, data de início e data de término.</td><td><span class="badge badge-alta">Alta</span></td><td>Cadastro de Semestre</td></tr>
+        <tr><td><span class="id-code">RF07</span></td><td>Validar campos obrigatórios do formulário de semestre antes de persistir.</td><td><span class="badge badge-alta">Alta</span></td><td>Cadastro de Semestre</td></tr>
+        <tr><td><span class="id-code">RF08</span></td><td>Validar consistência do período: data de término deve ser estritamente posterior à de início.</td><td><span class="badge badge-alta">Alta</span></td><td>Cadastro de Semestre</td></tr>
+        <tr><td><span class="id-code">RF09</span></td><td>Cancelar cadastro de semestre sem salvar dados, retornando ao dashboard.</td><td><span class="badge badge-baixa">Baixa</span></td><td>Cadastro de Semestre</td></tr>
+        <tr><td><span class="id-code">RF10</span></td><td>Criar automaticamente um processo acadêmico vinculado ao semestre após sua confirmação.</td><td><span class="badge badge-alta">Alta</span></td><td>Cadastro de Semestre</td></tr>
+        <tr><td><span class="id-code">RF68</span></td><td>Permitir criar e editar os semestres possíveis dentro de um processo, definindo quais semestres estarão ativos para a geração de horários.</td><td><span class="badge badge-alta">Alta</span></td><td>Cadastro de Semestre</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Módulo 3 -->
+<div class="module-group">
+  <div class="module-header">Módulo 3 — Oferta de Disciplinas <span class="mod-count">7 requisitos</span></div>
+  <div class="req-table">
+    <table>
+      <thead><tr><th class="col-id">ID</th><th class="col-desc">Descrição</th><th class="col-pri">Prioridade</th><th class="col-mod">Módulo</th></tr></thead>
+      <tbody>
+        <tr><td><span class="id-code">RF11</span></td><td>Exibir tela de configuração de disciplinas ofertadas no semestre ativo.</td><td><span class="badge badge-alta">Alta</span></td><td>Oferta de Disciplinas</td></tr>
+        <tr><td><span class="id-code">RF12</span></td><td>Pesquisar disciplinas por nome ou sigla em tempo real no campo de busca.</td><td><span class="badge badge-media">Média</span></td><td>Oferta de Disciplinas</td></tr>
+        <tr><td><span class="id-code">RF13</span></td><td>Exibir lista de disciplinas disponíveis para seleção (excluindo as já adicionadas).</td><td><span class="badge badge-alta">Alta</span></td><td>Oferta de Disciplinas</td></tr>
+        <tr><td><span class="id-code">RF14</span></td><td>Selecionar e adicionar disciplinas à área de configuração da oferta do semestre.</td><td><span class="badge badge-alta">Alta</span></td><td>Oferta de Disciplinas</td></tr>
+        <tr><td><span class="id-code">RF15</span></td><td>Remover disciplina da oferta, excluindo também suas configurações de turmas.</td><td><span class="badge badge-media">Média</span></td><td>Oferta de Disciplinas</td></tr>
+        <tr><td><span class="id-code">RF16</span></td><td>Configurar quantidade de turmas e informações acadêmicas por disciplina adicionada.</td><td><span class="badge badge-alta">Alta</span></td><td>Oferta de Disciplinas</td></tr>
+        <tr><td><span class="id-code">RF17</span></td><td>Persistir configuração de oferta, vinculando disciplinas e turmas ao semestre ativo.</td><td><span class="badge badge-alta">Alta</span></td><td>Oferta de Disciplinas</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Módulo 4 -->
+<div class="module-group">
+  <div class="module-header">Módulo 4 — Navegação do Fluxo <span class="mod-count">3 requisitos</span></div>
+  <div class="req-table">
+    <table>
+      <thead><tr><th class="col-id">ID</th><th class="col-desc">Descrição</th><th class="col-pri">Prioridade</th><th class="col-mod">Módulo</th></tr></thead>
+      <tbody>
+        <tr><td><span class="id-code">RF18</span></td><td>Exibir etapas do processo visualmente: Novo Semestre → Ofertas → Restrições → Simulação.</td><td><span class="badge badge-media">Média</span></td><td>Navegação do Fluxo</td></tr>
+        <tr><td><span class="id-code">RF19</span></td><td>Destacar visualmente a etapa atual do fluxo em que o usuário se encontra.</td><td><span class="badge badge-media">Média</span></td><td>Navegação do Fluxo</td></tr>
+        <tr><td><span class="id-code">RF20</span></td><td>Controlar a progressão sequencial do fluxo, bloqueando acesso a etapas futuras não desbloqueadas.</td><td><span class="badge badge-alta">Alta</span></td><td>Navegação do Fluxo</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Módulo 5 -->
+<div class="module-group">
+  <div class="module-header">Módulo 5 — Status Acadêmico <span class="mod-count">2 requisitos</span></div>
+  <div class="req-table">
+    <table>
+      <thead><tr><th class="col-id">ID</th><th class="col-desc">Descrição</th><th class="col-pri">Prioridade</th><th class="col-mod">Módulo</th></tr></thead>
+      <tbody>
+        <tr><td><span class="id-code">RF21</span></td><td>Exibir status atual do processo acadêmico em andamento em todas as telas do sistema.</td><td><span class="badge badge-media">Média</span></td><td>Status Acadêmico</td></tr>
+        <tr><td><span class="id-code">RF22</span></td><td>Atualizar automaticamente o status do semestre conforme o usuário avança nas etapas.</td><td><span class="badge badge-alta">Alta</span></td><td>Status Acadêmico</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Módulo 6 -->
+<div class="module-group">
+  <div class="module-header">Módulo 6 — Relatórios <span class="mod-count">6 requisitos · inclui RF51–RF54 normativos</span></div>
+  <div class="req-table">
+    <table>
+      <thead><tr><th class="col-id">ID</th><th class="col-desc">Descrição</th><th class="col-pri">Prioridade</th><th class="col-mod">Módulo</th></tr></thead>
+      <tbody>
+        <tr><td><span class="id-code">RF23</span></td><td>Acessar módulo de relatórios pelo menu lateral, disponível a qualquer momento.</td><td><span class="badge badge-media">Média</span></td><td>Relatórios</td></tr>
+        <tr><td><span class="id-code">RF24</span></td><td>Exibir relatórios consolidados de alocação com exportação em PDF, PNG, JPG e SVG.</td><td><span class="badge badge-media">Média</span></td><td>Relatórios</td></tr>
+        <tr><td><span class="id-code">RF51</span></td><td>[Normativo] Calcular carga horária docente considerando 50 minutos por crédito para todos os turnos, para padronização.</td><td><span class="badge badge-norm">Normativo · Alta</span></td><td>Relatórios</td></tr>
+        <tr><td><span class="id-code">RF52</span></td><td>[Normativo] Discriminar o cumprimento dos regimes de trabalho (20h, 40h ou DE) e carga horária em sala (limite 10h–20h para DE).</td><td><span class="badge badge-norm">Normativo · Alta</span></td><td>Relatórios</td></tr>
+        <tr><td><span class="id-code">RF53</span></td><td>[Normativo] Gerar quadro de horários semanal com turnos fixos: Manhã (07:25–11:45), Tarde (13:00–17:20) e Noite (18:20–22:40).</td><td><span class="badge badge-norm">Normativo · Alta</span></td><td>Relatórios</td></tr>
+        <tr><td><span class="id-code">RF54</span></td><td>[Normativo] Incluir registro de aulas aos sábados letivos para composição da carga horária semanal total.</td><td><span class="badge badge-norm">Normativo · Alta</span></td><td>Relatórios</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Módulo 7 -->
+<div class="module-group">
+  <div class="module-header">Módulo 7 — Controle Geral <span class="mod-count">9 requisitos</span></div>
+  <div class="req-table">
+    <table>
+      <thead><tr><th class="col-id">ID</th><th class="col-desc">Descrição</th><th class="col-pri">Prioridade</th><th class="col-mod">Módulo</th></tr></thead>
+      <tbody>
+        <tr><td><span class="id-code">RF25</span></td><td>Manter histórico de todos os semestres cadastrados, incluindo finalizados, disponível para consulta.</td><td><span class="badge badge-alta">Alta</span></td><td>Controle Geral</td></tr>
+        <tr><td><span class="id-code">RF26</span></td><td>Permitir consulta de informações de semestres anteriores (modo somente leitura para finalizados).</td><td><span class="badge badge-media">Média</span></td><td>Controle Geral</td></tr>
+        <tr><td><span class="id-code">RF27</span></td><td>Associar as disciplinas selecionadas ao semestre ativo durante o salvamento da oferta.</td><td><span class="badge badge-alta">Alta</span></td><td>Controle Geral</td></tr>
+        <tr><td><span class="id-code">RF28</span></td><td>Persistir todos os dados do fluxo de alocação em banco de dados relacional a cada operação.</td><td><span class="badge badge-alta">Alta</span></td><td>Controle Geral</td></tr>
+        <tr><td><span class="id-code">RF29</span></td><td>Permitir navegação entre módulos pelo menu lateral, respeitando regras de progressão do fluxo.</td><td><span class="badge badge-alta">Alta</span></td><td>Controle Geral</td></tr>
+        <tr><td><span class="id-code">RF30</span></td><td>Exibir interface responsiva, funcional a partir de 320 px de largura, com menu recolhível no mobile.</td><td><span class="badge badge-media">Média</span></td><td>Controle Geral</td></tr>
+        <tr><td><span class="id-code">RF58</span></td><td>Cadastrar professores com nome, regime de trabalho, área de atuação e dados de contato, validando campos obrigatórios antes de persistir.</td><td><span class="badge badge-alta">Alta</span></td><td>Controle Geral</td></tr>
+        <tr><td><span class="id-code">RF59</span></td><td>Cadastrar disciplinas com nome, sigla, carga horária em créditos e curso vinculado, impedindo duplicidade por sigla no mesmo período.</td><td><span class="badge badge-alta">Alta</span></td><td>Controle Geral</td></tr>
+        <tr><td><span class="id-code">RF60</span></td><td>Cadastrar coordenadores com nome, curso vinculado e credenciais de acesso, associando-os ao perfil de coordenador no sistema.</td><td><span class="badge badge-alta">Alta</span></td><td>Controle Geral</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Módulo 8 -->
+<div class="module-group">
+  <div class="module-header">Módulo 8 — Restrições e Preferências <span class="mod-count">9 requisitos</span></div>
+  <div class="req-table">
+    <table>
+      <thead><tr><th class="col-id">ID</th><th class="col-desc">Descrição</th><th class="col-pri">Prioridade</th><th class="col-mod">Módulo</th></tr></thead>
+      <tbody>
+        <tr><td><span class="id-code">RF31</span></td><td>Listar todas as restrições e preferências cadastradas para o semestre ativo, ordenadas por professor.</td><td><span class="badge badge-alta">Alta</span></td><td>Restrições e Preferências</td></tr>
+        <tr><td><span class="id-code">RF32</span></td><td>Exibir informações de cada restrição: professor vinculado, tipo e descrição.</td><td><span class="badge badge-alta">Alta</span></td><td>Restrições e Preferências</td></tr>
+        <tr><td><span class="id-code">RF33</span></td><td>Adicionar nova restrição ou preferência vinculada a um professor cadastrado no semestre ativo.</td><td><span class="badge badge-alta">Alta</span></td><td>Restrições e Preferências</td></tr>
+        <tr><td><span class="id-code">RF34</span></td><td>Remover restrição cadastrada mediante confirmação do usuário (ação permanente).</td><td><span class="badge badge-media">Média</span></td><td>Restrições e Preferências</td></tr>
+        <tr><td><span class="id-code">RF35</span></td><td>Validar que toda restrição está vinculada a um professor previamente cadastrado no sistema.</td><td><span class="badge badge-alta">Alta</span></td><td>Restrições e Preferências</td></tr>
+        <tr><td><span class="id-code">RF36</span></td><td>Armazenar preferências de horários dos professores para uso na simulação de alocação.</td><td><span class="badge badge-alta">Alta</span></td><td>Restrições e Preferências</td></tr>
+        <tr><td><span class="id-code">RF37</span></td><td>Navegar para a etapa de Simulação ao concluir a configuração de restrições.</td><td><span class="badge badge-media">Média</span></td><td>Restrições e Preferências</td></tr>
+        <tr><td><span class="id-code">RF38</span></td><td>Indicar visualmente no menu lateral que o usuário está na etapa de Restrições.</td><td><span class="badge badge-baixa">Baixa</span></td><td>Restrições e Preferências</td></tr>
+        <tr><td><span class="id-code">RF39</span></td><td>Manter exibição do semestre ativo (nome e status) no painel lateral em todas as telas.</td><td><span class="badge badge-media">Média</span></td><td>Restrições e Preferências</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Módulo 9 -->
+<div class="module-group">
+  <div class="module-header">Módulo 9 — Simulação <span class="mod-count">11 requisitos</span></div>
+  <div class="req-table">
+    <table>
+      <thead><tr><th class="col-id">ID</th><th class="col-desc">Descrição</th><th class="col-pri">Prioridade</th><th class="col-mod">Módulo</th></tr></thead>
+      <tbody>
+        <tr><td><span class="id-code">RF40</span></td><td>Exibir painel com totais de turmas, restrições e professores disponíveis para o processamento.</td><td><span class="badge badge-alta">Alta</span></td><td>Simulação</td></tr>
+        <tr><td><span class="id-code">RF41</span></td><td>Gerar possibilidades de alocação válidas entre professores, turmas e horários.</td><td><span class="badge badge-alta">Alta</span></td><td>Simulação</td></tr>
+        <tr><td><span class="id-code">RF42</span></td><td>Processar simulação de alocação mediante ação explícita do usuário ('Iniciar Processamento').</td><td><span class="badge badge-alta">Alta</span></td><td>Simulação</td></tr>
+        <tr><td><span class="id-code">RF43</span></td><td>Considerar todas as restrições cadastradas no semestre como critérios durante o processamento.</td><td><span class="badge badge-alta">Alta</span></td><td>Simulação</td></tr>
+        <tr><td><span class="id-code">RF44</span></td><td>Considerar disponibilidade de horários dos professores para gerar combinações válidas.</td><td><span class="badge badge-alta">Alta</span></td><td>Simulação</td></tr>
+        <tr><td><span class="id-code">RF45</span></td><td>Indicar visualmente ao usuário que se encontra na etapa de Simulação dentro do fluxo.</td><td><span class="badge badge-baixa">Baixa</span></td><td>Simulação</td></tr>
+        <tr><td><span class="id-code">RF46</span></td><td>Disponibilizar acesso ao relatório de resultados após a conclusão do processamento.</td><td><span class="badge badge-media">Média</span></td><td>Simulação</td></tr>
+        <tr><td><span class="id-code">RF47</span></td><td>Validar existência de dados mínimos (ao menos 1 professor, 1 turma e semestre ativo) antes de processar.</td><td><span class="badge badge-alta">Alta</span></td><td>Simulação</td></tr>
+        <tr><td><span class="id-code">RF48</span></td><td>Processar automaticamente combinações de alocação priorizando o maior número de restrições atendidas.</td><td><span class="badge badge-alta">Alta</span></td><td>Simulação</td></tr>
+        <tr><td><span class="id-code">RF49</span></td><td>Exibir resultados da simulação em painel organizado por semestre, turma e professor.</td><td><span class="badge badge-media">Média</span></td><td>Simulação</td></tr>
+        <tr><td><span class="id-code">RF50</span></td><td>Integrar dados das etapas anteriores no processamento, alertando sobre alterações após simulação.</td><td><span class="badge badge-alta">Alta</span></td><td>Simulação</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Módulo 10 -->
+<div class="module-group">
+  <div class="module-header">Módulo 10 — Edição Manual de Grade <span class="mod-count">4 requisitos</span></div>
+  <div class="req-table">
+    <table>
+      <thead><tr><th class="col-id">ID</th><th class="col-desc">Descrição</th><th class="col-pri">Prioridade</th><th class="col-mod">Módulo</th></tr></thead>
+      <tbody>
+        <tr><td><span class="id-code">RF61</span></td><td>Permitir que o coordenador edite manualmente a grade de alocação gerada pela simulação, alterando professor, horário ou turma de um item alocado.</td><td><span class="badge badge-alta">Alta</span></td><td>Edição de Grade</td></tr>
+        <tr><td><span class="id-code">RF62</span></td><td>Destacar visualmente na grade os itens modificados manualmente pelo coordenador, diferenciando-os das alocações geradas automaticamente.</td><td><span class="badge badge-media">Média</span></td><td>Edição de Grade</td></tr>
+        <tr><td><span class="id-code">RF63</span></td><td>Registrar histórico de todas as alterações manuais realizadas pelo coordenador, com data, hora e identificação do usuário responsável.</td><td><span class="badge badge-alta">Alta</span></td><td>Edição de Grade</td></tr>
+        <tr><td><span class="id-code">RF64</span></td><td>Permitir reverter uma edição manual para a alocação sugerida originalmente pela simulação, mediante confirmação do coordenador.</td><td><span class="badge badge-media">Média</span></td><td>Edição de Grade</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Módulo 11 -->
+<div class="module-group">
+  <div class="module-header">Módulo 11 — Alertas de Edição <span class="mod-count">3 requisitos</span></div>
+  <div class="req-table">
+    <table>
+      <thead><tr><th class="col-id">ID</th><th class="col-desc">Descrição</th><th class="col-pri">Prioridade</th><th class="col-mod">Módulo</th></tr></thead>
+      <tbody>
+        <tr><td><span class="id-code">RF65</span></td><td>Emitir alerta automático quando uma edição manual do coordenador gerar conflito de horário para o professor designado (mesmo professor alocado em dois lugares simultâneos).</td><td><span class="badge badge-alta">Alta</span></td><td>Alertas de Edição</td></tr>
+        <tr><td><span class="id-code">RF66</span></td><td>Emitir alerta quando uma edição manual violar restrições ou preferências previamente cadastradas para o professor envolvido na alteração.</td><td><span class="badge badge-alta">Alta</span></td><td>Alertas de Edição</td></tr>
+        <tr><td><span class="id-code">RF67</span></td><td>Emitir alerta quando a edição manual resultar em extrapolação da carga horária semanal permitida para o regime de trabalho do professor.</td><td><span class="badge badge-alta">Alta</span></td><td>Alertas de Edição</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="note">Total consolidado: 69 requisitos funcionais distribuídos em 11 módulos (incluindo Módulo 0 — Autenticação e Módulos 10 e 11 adicionados na versão 1.2). Os itens RF51–RF54 foram incorporados ao Módulo 6 (Relatórios) como requisitos normativos de conformidade com as diretrizes do IFCE.</div>
+
+<!-- Seção 2: RNFs -->
+<div class="section-title"><span class="section-num">2</span> Tabela de Requisitos Não Funcionais</div>
+
+<div class="req-table rnf-table" style="border-top: 0.5px solid var(--color-border-tertiary); border-radius: var(--border-radius-md);">
+  <table>
+    <thead><tr><th class="col-id">ID</th><th class="col-cat">Categoria</th><th class="col-desc">Descrição</th><th class="col-crit">Critério / Métrica</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><span class="id-code">RNF01</span></td>
+        <td><span class="badge badge-norm">Usabilidade</span></td>
+        <td>O sistema deve possuir interface simples e intuitiva, acessível a gestores e professores sem treinamento especializado.</td>
+        <td>Avaliação subjetiva por usuários-piloto</td>
+      </tr>
+      <tr>
+        <td><span class="id-code">RNF02</span></td>
+        <td><span class="badge badge-alta">Desempenho</span></td>
+        <td>O sistema deve gerar a alocação automática de professores em tempo reduzido, garantindo resposta aceitável mesmo com grande volume de dados.</td>
+        <td>Tempo máximo: <strong>2,5 segundos</strong> para geração da alocação</td>
+      </tr>
+      <tr>
+        <td><span class="id-code">RNF03</span></td>
+        <td><span class="badge badge-media">Confiabilidade</span></td>
+        <td>O sistema deve minimizar erros e inconsistências na distribuição de professores, garantindo integridade dos dados gerados.</td>
+        <td>Taxa de inconsistências próxima de zero; validações em todas as entradas críticas</td>
+      </tr>
+      <tr>
+        <td><span class="id-code">RNF04</span></td>
+        <td><span class="badge badge-baixa">Disponibilidade</span></td>
+        <td>O sistema deve estar acessível localmente, sem dependência de conexão com a internet para operação principal.</td>
+        <td>Operação 100% local (on-premise); sem requisito de uptime externo</td>
+      </tr>
+      <tr>
+        <td><span class="id-code">RNF05</span></td>
+        <td><span class="badge badge-norm">Manutenibilidade</span></td>
+        <td>O sistema deve permitir fácil atualização das regras mutáveis (ex: turnos, cargas horárias) sem necessidade de reescrita de código.</td>
+        <td>Regras configuráveis via parâmetros ou arquivos; sem deploy obrigatório para ajustes simples</td>
+      </tr>
+      <tr>
+        <td><span class="id-code">RNF06</span></td>
+        <td><span class="badge badge-media">Portabilidade</span></td>
+        <td>O sistema deve funcionar em diversos sistemas operacionais sem adaptações específicas por plataforma.</td>
+        <td>Compatível com Windows, Linux e macOS</td>
+      </tr>
+      <tr>
+        <td><span class="id-code">RNF07</span></td>
+        <td><span class="badge badge-media">Backup</span></td>
+        <td>O sistema deve permitir a realização de cópias de segurança dos dados locais, garantindo recuperação em caso de falha.</td>
+        <td>Exportação/importação de dados; restauração sem perda de integridade referencial</td>
+      </tr>
+      <tr>
+        <td><span class="id-code">RNF08</span></td>
+        <td><span class="badge badge-alta">Transparência</span></td>
+        <td>O sistema deve apresentar de forma clara os critérios utilizados pelo algoritmo na distribuição de docentes, permitindo auditabilidade das decisões.</td>
+        <td>Relatório de critérios acessível ao usuário após cada simulação; sem "caixa-preta"</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- Seção 3: Regras de Negócio -->
+<div class="section-title"><span class="section-num">3</span> Matriz de Regras de Negócio</div>
+
+<div class="req-table rn-table" style="border-top: 0.5px solid var(--color-border-tertiary); border-radius: var(--border-radius-md);">
+  <table>
+    <thead><tr><th class="col-rn">ID</th><th class="col-cat">Categoria</th><th class="col-reg">Regra / Descrição</th><th class="col-imp">Impacto no Sistema</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><span class="id-code">RN01</span></td>
+        <td><span class="badge badge-alta">Carga Horária</span></td>
+        <td><strong>Padronização de 50 minutos por crédito:</strong> Para fins de cálculo de carga horária docente, cada crédito acadêmico equivale a 50 minutos de aula, aplicável a todos os turnos (manhã, tarde e noite) sem exceção.</td>
+        <td>RF51 · Módulo 6 — Relatórios: base de todo cálculo de CH nos relatórios gerados</td>
+      </tr>
+      <tr>
+        <td><span class="id-code">RN02</span></td>
+        <td><span class="badge badge-norm">Estrutura de Turnos</span></td>
+        <td><strong>Horários fixos por turno:</strong> O quadro semanal deve respeitar os seguintes intervalos institucionais:<br>
+          · <strong>Manhã:</strong> 07:25 às 11:45<br>
+          · <strong>Tarde:</strong> 13:00 às 17:20<br>
+          · <strong>Noite:</strong> 18:20 às 22:40</td>
+          <td>RF53 · Módulo 6 — base para geração do quadro de horários e detecção de conflitos</td>
+        </tr>
+        <tr>
+          <td><span class="id-code">RN03</span></td>
+          <td><span class="badge badge-alta">Regime de Trabalho</span></td>
+          <td><strong>Limites de carga horária por regime:</strong> O sistema deve respeitar e discriminar os regimes docentes vigentes:<br>
+            · Regime 20h: carga horária limitada a 20h semanais<br>
+            · Regime 40h: carga horária limitada a 40h semanais<br>
+            · Dedicação Exclusiva (DE): carga em sala entre <strong>10h e 20h</strong> semanais (mínimo e máximo obrigatórios)</td>
+            <td>RF52 · Módulo 6 e Módulo 9 — critério de restrição na simulação e exibição nos relatórios</td>
+          </tr>
+          <tr>
+            <td><span class="id-code">RN04</span></td>
+            <td><span class="badge badge-media">Sábados Letivos</span></td>
+            <td><strong>Composição da carga horária com sábados:</strong> Aulas ministradas aos sábados letivos devem ser contabilizadas na carga horária semanal total do docente, com o mesmo critério de 50 min/crédito (RN01).</td>
+            <td>RF54 · Módulo 6 — inclusão no cálculo e registro nos relatórios de CH semanal</td>
+          </tr>
+          <tr>
+        <td><span class="id-code">RN05</span></td>
+        <td><span class="badge badge-norm">Transparência do Algoritmo</span></td>
+        <td><strong>Exposição dos critérios de distribuição:</strong> Todo resultado de simulação deve ser acompanhado da exposição clara dos critérios ponderados pelo algoritmo (restrições atendidas, preferências consideradas, conflitos encontrados), garantindo que a decisão final seja auditável pela gestão.</td>
+        <td>RNF08 · Módulo 9 (RF48) — relatório pós-simulação com detalhamento da lógica de alocação</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="note" style="margin-top: 1rem; margin-bottom: 1.5rem;">Fonte: Nordev_Requisitos_v1_0.pdf (RF01–RF54) e Relatório_DeVops.pdf (RNF01–RNF08). As Regras de Negócio (RN01–RN05) foram derivadas dos requisitos normativos RF51–RF54 e RNF08, mapeando explicitamente como cada regra deve ser implementada e em quais módulos ela tem impacto direto.</div>
+
+</body>
