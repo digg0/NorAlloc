@@ -6,10 +6,10 @@ from app.models.curso import Curso
 from app.schemas.curso import CursoCreate, CursoResponse
 
 
-router = APIRouter(prefix="/cursos", tags=["Cursos"])
+router = APIRouter(prefix="/api/cursos", tags=["Cursos"])
 
 
-@router.post("/", response_model=CursoResponse, status_code=201)
+@router.post("", response_model=CursoResponse, status_code=201)
 def criar_curso(curso: CursoCreate, db: Session = Depends(get_db)):
     
     curso_existente = (
@@ -45,7 +45,7 @@ def criar_curso(curso: CursoCreate, db: Session = Depends(get_db)):
         )
 
 
-@router.get("/", response_model=list[CursoResponse])
+@router.get("", response_model=list[CursoResponse])
 def listar_cursos(db: Session = Depends(get_db)):
     return db.query(Curso).all()
 
