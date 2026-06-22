@@ -10,3 +10,4 @@ from app.models.disponibilidade import Restricao
 from app.models.disponibilidade_turma import DisponibilidadeTurma
 from app.models.preferencias_professor import PreferenciaProfessor
 from app.models.oferta_disciplina import OfertaDisciplina
+from app.models.alocacao import Alocacao
