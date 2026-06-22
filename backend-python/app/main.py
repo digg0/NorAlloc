@@ -14,6 +14,9 @@ from app.api.routers import disciplinas
 from app.api.routers import horarios
 from app.api.routers import ofertas
 from app.api.routers import disponibilidade_turma
+from app.api.routers import cursos
+from app.api.routers import semestre
+from app.api.routers import usuario
 from app.api.routers import professores
 from app.api.routers import preferencias_professor
 
@@ -40,6 +43,9 @@ app.include_router(disciplinas.router)
 app.include_router(horarios.router)
 app.include_router(ofertas.router)
 app.include_router(disponibilidade_turma.router)
+app.include_router(cursos.router)
+app.include_router(semestre.router)
+app.include_router(usuario.router)
 app.include_router(professores.router)
 app.include_router(preferencias_professor.router)
 
