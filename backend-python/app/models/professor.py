@@ -1,59 +1,20 @@
-from sqlalchemy import Column
-from sqlalchemy import Integer
-from sqlalchemy import String
-from sqlalchemy import ForeignKey
-
+from sqlalchemy import Column, Integer, String, ForeignKey
 from sqlalchemy.orm import relationship
 
 from app.core.database import Base
 
 
 class Professor(Base):
-
     __tablename__ = "professores"
 
-    id = Column(
-        Integer,
-        primary_key=True,
-        index=True
-    )
+    id = Column(Integer, primary_key=True, index=True)
+    # Vínculo opcional com uma conta de login (usuarios). Um docente pode ser
+    # cadastrado pelo admin sem ter, ainda, uma conta de acesso.
+    usuario_id = Column(Integer, ForeignKey("usuarios.id"), nullable=True)
+    nome = Column(String, nullable=False)
+    email = Column(String, index=True, nullable=True)
+    regime_trabalho = Column(String, nullable=False)
+    area = Column(String, nullable=True)
+    carga_maxima = Column(Integer, nullable=True)
 
-    usuario_id = Column(
-        Integer,
-        ForeignKey("usuarios.id"),
-        nullable=False
-    )
-
-    nome = Column(
-        String,
-        nullable=False
-    )
-
-    regime_trabalho = Column(
-        String,
-        nullable=False
-    )
-
-    carga_maxima = Column(
-        Integer,
-        nullable=False
-    )
-
-    usuario = relationship(
-        "Usuario"
-    )
-
-    disponibilidades = relationship(
-        "DisponibilidadeProfessor",
-        back_populates="professor"
-    )
-
-    preferencias = relationship(
-        "PreferenciaDocente",
-        back_populates="professor"
-    )
-
-    aptidoes = relationship(
-        "AptidaoDocente",
-        back_populates="professor"
-    )
+    usuario = relationship("Usuario")

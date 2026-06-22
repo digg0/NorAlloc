@@ -3,11 +3,13 @@ from fastapi.middleware.cors import CORSMiddleware
 import os
 
 from app.core.database import Base, engine
+from app.core.seed import seed_usuarios_demo
 
 # 1. IMPORTA OS MODELOS PRIMEIRO (Evita conflitos de nomes)
 from app.models import *
 
 # 2. IMPORTA OS ROUTERS DEPOIS
+from app.api.routers import auth
 from app.api.routers import coordenadores
 from app.api.routers import disponibilidade
 from app.api.routers import disciplinas 
@@ -21,6 +23,9 @@ from app.api.routers import professores
 from app.api.routers import preferencias_professor
 
 Base.metadata.create_all(bind=engine)
+
+# Cria os usuários de demonstração (admin/coordenador/professor) se faltarem.
+seed_usuarios_demo()
 
 app = FastAPI(
     title="NorAlloc - API",
@@ -37,6 +42,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.include_router(auth.router)
 app.include_router(coordenadores.router)
 app.include_router(disponibilidade.router)
 app.include_router(disciplinas.router)

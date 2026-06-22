@@ -38,9 +38,3 @@ class Disciplina(Base):
         "Curso",
         back_populates="disciplinas"
     )
-
-    aptidoes = relationship(
-        "AptidaoDocente",
-        back_populates="disciplina"
-    )
-    
