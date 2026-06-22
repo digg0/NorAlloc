@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from typing import List
 
 from app.core.database import get_db
+from app.core.security import get_password_hash
 from app.models.usuario import Usuario
 from app.schemas.usuario import (
     UsuarioCreate,
@@ -68,7 +69,7 @@ def criar_usuario(
     novo_usuario = Usuario(
         nome=usuario_in.nome,
         email=usuario_in.email,
-        senha=usuario_in.senha,  # trocar por hash futuramente
+        senha=get_password_hash(usuario_in.senha),
         tipo=usuario_in.tipo
     )
 
@@ -103,6 +104,8 @@ def atualizar_usuario(
     update_data = usuario_in.model_dump(exclude_unset=True)
 
     for campo, valor in update_data.items():
+        if campo == "senha":
+            valor = get_password_hash(valor)
         setattr(db_usuario, campo, valor)
 
     db.commit()

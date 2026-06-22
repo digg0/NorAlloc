@@ -10,6 +10,8 @@ import {
 } from 'lucide-react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
+import { login as apiLogin, logout as apiLogout, getSessao, type SessaoUsuario } from './services/auth';
+import { listarProfessores, criarProfessor, atualizarProfessor, removerProfessor } from './services/professores';
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -494,26 +496,28 @@ const MOCK_USERS = [
 
 // ── Login Screen ───────────────────────────────────────────────────────────────
 
-function LoginScreen({ onLogin }: { onLogin: (user: typeof MOCK_USERS[0]) => void }) {
+function LoginScreen({ onLogin }: { onLogin: (user: SessaoUsuario) => void }) {
   const [email, setEmail] = useState('saulo.anderson@ifce.edu.br');
   const [password, setPassword] = useState('123456');
   const [showPass, setShowPass] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setLoading(true);
-    setTimeout(() => {
-      const user = MOCK_USERS.find(u => u.email === email && u.password === password);
-      if (user) {
-        onLogin(user);
-      } else {
-        setError('E-mail ou senha incorretos. Tente novamente.');
-        setLoading(false);
-      }
-    }, 800);
+    try {
+      const sessao = await apiLogin(email, password);
+      onLogin(sessao);
+    } catch (err: any) {
+      setError(
+        err?.status === 401
+          ? 'E-mail ou senha incorretos. Tente novamente.'
+          : (err?.message || 'Não foi possível conectar ao servidor.')
+      );
+      setLoading(false);
+    }
   };
 
   return (
@@ -678,15 +682,17 @@ function LoginScreen({ onLogin }: { onLogin: (user: typeof MOCK_USERS[0]) => voi
 // ── Root App ───────────────────────────────────────────────────────────────────
 
 export default function App() {
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [currentUser, setCurrentUser] = useState<typeof MOCK_USERS[0] | null>(null);
+  const sessaoSalva = getSessao();
+  const [isLoggedIn, setIsLoggedIn] = useState(sessaoSalva !== null);
+  const [currentUser, setCurrentUser] = useState<SessaoUsuario | null>(sessaoSalva);
 
-  const handleLogin = (user: typeof MOCK_USERS[0]) => {
+  const handleLogin = (user: SessaoUsuario) => {
     setCurrentUser(user);
     setIsLoggedIn(true);
   };
 
   const handleLogout = () => {
+    apiLogout();
     setIsLoggedIn(false);
     setCurrentUser(null);
   };
@@ -704,7 +710,7 @@ export default function App() {
 
 // ── AppShell ───────────────────────────────────────────────────────────────────
 
-function AppShell({ currentUser, onLogout }: { currentUser: typeof MOCK_USERS[0]; onLogout: () => void }) {
+function AppShell({ currentUser, onLogout }: { currentUser: SessaoUsuario; onLogout: () => void }) {
   const isAdmin = currentUser.role === 'Administrador';
   const isProf  = currentUser.role === 'Professor';
   const [currentView, setCurrentView] = useState<View>(
@@ -725,6 +731,14 @@ function AppShell({ currentUser, onLogout }: { currentUser: typeof MOCK_USERS[0]
 
   // ── Entidades com CRUD funcional ──────────────────────────────────────────
   const [professores, setProfessores] = useState<Professor[]>([...MOCK_PROFESSORES]);
+
+  // Carrega os professores reais do backend ao montar (cai para o mock se o
+  // backend estiver indisponível, mantendo a demo navegável).
+  useEffect(() => {
+    listarProfessores()
+      .then(setProfessores)
+      .catch(() => { /* backend offline: mantém os dados de exemplo */ });
+  }, []);
   const [disciplinas, setDisciplinas] = useState<Disciplina[]>([...MOCK_DISCIPLINAS]);
   const [turmas, setTurmas] = useState<Turma[]>([...MOCK_TURMAS]);
 
@@ -743,16 +757,29 @@ function AppShell({ currentUser, onLogout }: { currentUser: typeof MOCK_USERS[0]
 
   const openProfAdd = () => { setProfForm(emptyProfForm); setProfFormError(''); setProfModal({ open: true, editId: null }); };
   const openProfEdit = (p: Professor) => { setProfForm({ nome: p.nome, email: p.email, regimeTrabalho: p.regimeTrabalho, areaAtuacao: p.areaAtuacao }); setProfFormError(''); setProfModal({ open: true, editId: p.id }); };
-  const saveProf = () => {
+  const saveProf = async () => {
     if (!profForm.nome.trim() || !profForm.email.trim()) { setProfFormError('Nome e e-mail são obrigatórios.'); return; }
-    if (profModal.editId !== null) {
-      setProfessores(ps => ps.map(p => p.id === profModal.editId ? { ...p, ...profForm } : p));
-    } else {
-      setProfessores(ps => [...ps, { id: Math.max(0, ...ps.map(p => p.id)) + 1, ...profForm }]);
+    try {
+      if (profModal.editId !== null) {
+        const atualizado = await atualizarProfessor(profModal.editId, profForm);
+        setProfessores(ps => ps.map(p => p.id === profModal.editId ? atualizado : p));
+      } else {
+        const novo = await criarProfessor(profForm);
+        setProfessores(ps => [...ps, novo]);
+      }
+      setProfModal({ open: false, editId: null });
+    } catch (err: any) {
+      setProfFormError(err?.message || 'Erro ao salvar professor.');
     }
-    setProfModal({ open: false, editId: null });
   };
-  const deleteProf = (id: number) => setProfessores(ps => ps.filter(p => p.id !== id));
+  const deleteProf = async (id: number) => {
+    try {
+      await removerProfessor(id);
+      setProfessores(ps => ps.filter(p => p.id !== id));
+    } catch (err) {
+      console.error('Falha ao remover professor:', err);
+    }
+  };
 
   // ── Disciplina CRUD ───────────────────────────────────────────────────────
   type DiscForm = Omit<Disciplina, 'id'>;

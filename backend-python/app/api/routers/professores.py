@@ -4,7 +4,6 @@ from typing import List
 
 from app.core.database import get_db
 from app.models.professor import Professor
-from app.models.usuario import Usuario
 from app.schemas.professor import ProfessorCreate, ProfessorUpdate, ProfessorResponse
 
 router = APIRouter(
@@ -52,31 +51,23 @@ def obter_professor(professor_id: int, db: Session = Depends(get_db)):
     dependencies=[Depends(verificar_admin)]
 )
 def criar_professor(prof_in: ProfessorCreate, db: Session = Depends(get_db)):
-    """Cria um novo professor no sistema."""
-    
-    # Verifica se o usuário existe
-    db_usuario = db.query(Usuario).filter(Usuario.id == prof_in.usuario_id).first()
-    if not db_usuario:
+    """Cria um novo professor (docente) no sistema."""
+
+    # E-mail deve ser único entre os professores
+    if db.query(Professor).filter(Professor.email == prof_in.email).first():
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Usuário especificado não existe."
-        )
-    
-    # Verifica se já existe um professor para esse usuário
-    db_professor = db.query(Professor).filter(Professor.usuario_id == prof_in.usuario_id).first()
-    if db_professor:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Já existe um professor cadastrado para este usuário."
+            detail="Já existe um professor com este e-mail."
         )
 
     novo_professor = Professor(
         nome=prof_in.nome,
-        usuario_id=prof_in.usuario_id,
+        email=prof_in.email,
         regime_trabalho=prof_in.regime_trabalho,
+        area=prof_in.area,
         carga_maxima=prof_in.carga_maxima
     )
-    
+
     db.add(novo_professor)
     db.commit()
     db.refresh(novo_professor)
@@ -125,3 +116,4 @@ def deletar_professor(professor_id: int, db: Session = Depends(get_db)):
 
     db.delete(db_professor)
     db.commit()
+    return None

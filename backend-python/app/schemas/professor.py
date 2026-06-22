@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import BaseModel, EmailStr, Field, ConfigDict
 from typing import Optional
 
 
@@ -36,9 +36,10 @@ class PreferenciaProfessorResponse(PreferenciaProfessorBase):
 
 class ProfessorBase(BaseModel):
     nome: str = Field(..., min_length=3, max_length=150, description="Nome do professor")
-    usuario_id: int = Field(..., gt=0, description="ID do usuário associado")
-    regime_trabalho: str = Field(..., description="Regime de trabalho (ex: Integral, Parcial, Horista)")
-    carga_maxima: int = Field(..., gt=0, description="Carga horária máxima semanal")
+    email: EmailStr = Field(..., description="E-mail institucional do professor")
+    regime_trabalho: str = Field(..., description="Regime de trabalho (DE, 40H, 20H)")
+    area: Optional[str] = Field(None, description="Área de atuação")
+    carga_maxima: Optional[int] = Field(None, gt=0, description="Carga horária máxima semanal")
 
 
 class ProfessorCreate(ProfessorBase):
@@ -47,9 +48,11 @@ class ProfessorCreate(ProfessorBase):
 
 
 class ProfessorUpdate(BaseModel):
-    """Schema para atualizar um professor."""
+    """Schema para atualizar um professor (parcial)."""
     nome: Optional[str] = Field(None, min_length=3, max_length=150)
+    email: Optional[EmailStr] = None
     regime_trabalho: Optional[str] = None
+    area: Optional[str] = None
     carga_maxima: Optional[int] = Field(None, gt=0)
 
 
