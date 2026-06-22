@@ -43,3 +43,4 @@ class Disciplina(Base):
         "AptidaoDocente",
         back_populates="disciplina"
     )
+    

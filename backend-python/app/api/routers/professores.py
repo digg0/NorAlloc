@@ -4,9 +4,13 @@ from typing import List
 
 from app.core.database import get_db
 from app.models.professor import Professor
+from app.models.usuario import Usuario
 from app.schemas.professor import ProfessorCreate, ProfessorUpdate, ProfessorResponse
 
-router = APIRouter(prefix="/api/professores", tags=["Módulo de Cadastros Base - Professores"])
+router = APIRouter(
+    prefix="/api/professores",
+    tags=["Módulo de Cadastros Base - Professores"]
+)
 
 # ---------------------------------------------------------
 # MOCK DA AUTENTICAÇÃO (A substituir pelo JWT futuramente)
@@ -14,13 +18,22 @@ def verificar_admin():
     pass # Permite testar os endpoints agora
 # ---------------------------------------------------------
 
-@router.get("", response_model=List[ProfessorResponse], dependencies=[Depends(verificar_admin)])
+
+@router.get(
+    "",
+    response_model=List[ProfessorResponse],
+    dependencies=[Depends(verificar_admin)]
+)
 def listar_professores(db: Session = Depends(get_db)):
     """Lista todos os professores cadastrados."""
     return db.query(Professor).all()
 
 
-@router.get("/{professor_id}", response_model=ProfessorResponse, dependencies=[Depends(verificar_admin)])
+@router.get(
+    "/{professor_id}",
+    response_model=ProfessorResponse,
+    dependencies=[Depends(verificar_admin)]
+)
 def obter_professor(professor_id: int, db: Session = Depends(get_db)):
     """Obtém os detalhes de um professor específico."""
     db_professor = db.query(Professor).filter(Professor.id == professor_id).first()
@@ -32,12 +45,16 @@ def obter_professor(professor_id: int, db: Session = Depends(get_db)):
     return db_professor
 
 
-@router.post("", response_model=ProfessorResponse, status_code=status.HTTP_201_CREATED, dependencies=[Depends(verificar_admin)])
+@router.post(
+    "",
+    response_model=ProfessorResponse,
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(verificar_admin)]
+)
 def criar_professor(prof_in: ProfessorCreate, db: Session = Depends(get_db)):
     """Cria um novo professor no sistema."""
     
     # Verifica se o usuário existe
-    from app.models.usuario import Usuario
     db_usuario = db.query(Usuario).filter(Usuario.id == prof_in.usuario_id).first()
     if not db_usuario:
         raise HTTPException(
@@ -45,7 +62,7 @@ def criar_professor(prof_in: ProfessorCreate, db: Session = Depends(get_db)):
             detail="Usuário especificado não existe."
         )
     
-    # Verifica se o professor já existe para esse usuário
+    # Verifica se já existe um professor para esse usuário
     db_professor = db.query(Professor).filter(Professor.usuario_id == prof_in.usuario_id).first()
     if db_professor:
         raise HTTPException(
@@ -66,7 +83,11 @@ def criar_professor(prof_in: ProfessorCreate, db: Session = Depends(get_db)):
     return novo_professor
 
 
-@router.put("/{professor_id}", response_model=ProfessorResponse, dependencies=[Depends(verificar_admin)])
+@router.put(
+    "/{professor_id}",
+    response_model=ProfessorResponse,
+    dependencies=[Depends(verificar_admin)]
+)
 def atualizar_professor(professor_id: int, prof_in: ProfessorUpdate, db: Session = Depends(get_db)):
     """Modifica informações do professor."""
     
@@ -87,7 +108,11 @@ def atualizar_professor(professor_id: int, prof_in: ProfessorUpdate, db: Session
     return db_professor
 
 
-@router.delete("/{professor_id}", status_code=status.HTTP_204_NO_CONTENT, dependencies=[Depends(verificar_admin)])
+@router.delete(
+    "/{professor_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    dependencies=[Depends(verificar_admin)]
+)
 def deletar_professor(professor_id: int, db: Session = Depends(get_db)):
     """Remove um professor do sistema."""
     
@@ -100,4 +125,3 @@ def deletar_professor(professor_id: int, db: Session = Depends(get_db)):
 
     db.delete(db_professor)
     db.commit()
-    return None
