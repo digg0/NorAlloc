@@ -21,6 +21,7 @@ from app.api.routers import semestre
 from app.api.routers import usuario
 from app.api.routers import professores
 from app.api.routers import preferencias_professor
+from app.api.routers import turmas
 
 Base.metadata.create_all(bind=engine)
 
@@ -54,6 +55,8 @@ app.include_router(semestre.router)
 app.include_router(usuario.router)
 app.include_router(professores.router)
 app.include_router(preferencias_professor.router)
+app.include_router(turmas.router)
+
 
 @app.get("/")
 def read_root():
