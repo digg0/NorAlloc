@@ -22,6 +22,7 @@ from app.api.routers import usuario
 from app.api.routers import professores
 from app.api.routers import preferencias_professor
 from app.api.routers import turmas
+from app.api.routers import dashboard
 
 Base.metadata.create_all(bind=engine)
 
@@ -56,6 +57,7 @@ app.include_router(usuario.router)
 app.include_router(professores.router)
 app.include_router(preferencias_professor.router)
 app.include_router(turmas.router)
+app.include_router(dashboard.router)
 
 
 @app.get("/")
