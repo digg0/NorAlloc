@@ -12,6 +12,7 @@ import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { login as apiLogin, logout as apiLogout, getSessao, type SessaoUsuario } from './services/auth';
 import { listarProfessores, criarProfessor, atualizarProfessor, removerProfessor } from './services/professores';
+import { getResumoGeral, getResumoProfessor, type ResumoGeral, type ResumoProfessor } from './services/dashboard';
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -739,6 +740,17 @@ function AppShell({ currentUser, onLogout }: { currentUser: SessaoUsuario; onLog
       .then(setProfessores)
       .catch(() => { /* backend offline: mantém os dados de exemplo */ });
   }, []);
+
+  // Dados agregados do dashboard, puxados do banco conforme o perfil.
+  const [resumo, setResumo] = useState<ResumoGeral | null>(null);
+  const [resumoProf, setResumoProf] = useState<ResumoProfessor | null>(null);
+  useEffect(() => {
+    if (isProf) {
+      getResumoProfessor().then(setResumoProf).catch(() => {});
+    } else {
+      getResumoGeral().then(setResumo).catch(() => {});
+    }
+  }, [isProf]);
   const [disciplinas, setDisciplinas] = useState<Disciplina[]>([...MOCK_DISCIPLINAS]);
   const [turmas, setTurmas] = useState<Turma[]>([...MOCK_TURMAS]);
 
@@ -1136,11 +1148,11 @@ function AppShell({ currentUser, onLogout }: { currentUser: SessaoUsuario; onLog
                     <Users className="h-4 w-4 text-muted-foreground" />
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold">{professores.length}</div>
+                    <div className="text-2xl font-bold">{resumo?.professores.total ?? professores.length}</div>
                     <p className="text-xs text-muted-foreground">
-                      {professores.filter(p => p.regimeTrabalho === 'DE').length} DE ·{' '}
-                      {professores.filter(p => p.regimeTrabalho === '40H').length} 40H ·{' '}
-                      {professores.filter(p => p.regimeTrabalho === '20H').length} 20H
+                      {resumo?.professores.de ?? professores.filter(p => p.regimeTrabalho === 'DE').length} DE ·{' '}
+                      {resumo?.professores.h40 ?? professores.filter(p => p.regimeTrabalho === '40H').length} 40H ·{' '}
+                      {resumo?.professores.h20 ?? professores.filter(p => p.regimeTrabalho === '20H').length} 20H
                     </p>
                   </CardContent>
                 </Card>
@@ -1150,9 +1162,9 @@ function AppShell({ currentUser, onLogout }: { currentUser: SessaoUsuario; onLog
                     <BookOpen className="h-4 w-4 text-muted-foreground" />
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold">{disciplinas.length}</div>
+                    <div className="text-2xl font-bold">{resumo?.disciplinas ?? disciplinas.length}</div>
                     <p className="text-xs text-muted-foreground">
-                      Em {MOCK_CURSOS.filter(c => disciplinas.some(d => d.cursoId === c.id)).length} cursos
+                      Em {resumo?.cursos ?? MOCK_CURSOS.filter(c => disciplinas.some(d => d.cursoId === c.id)).length} cursos
                     </p>
                   </CardContent>
                 </Card>
@@ -1163,6 +1175,15 @@ function AppShell({ currentUser, onLogout }: { currentUser: SessaoUsuario; onLog
                   </CardHeader>
                   <CardContent>
                     {(() => {
+                      if (resumo) {
+                        const atual = resumo.semestre_atual;
+                        return atual ? (
+                          <>
+                            <div className="text-2xl font-bold">{atual.nome}</div>
+                            <Badge variant="secondary" className="mt-1">{atual.status}</Badge>
+                          </>
+                        ) : <div className="text-sm text-muted-foreground">Nenhum ativo</div>;
+                      }
                       const ativo = MOCK_SEMESTRES.find(s => s.statusEtapa !== 'CONCLUIDO');
                       return ativo ? (
                         <>
@@ -1237,7 +1258,15 @@ function AppShell({ currentUser, onLogout }: { currentUser: SessaoUsuario; onLog
                     <CardDescription>Situação por período letivo.</CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-3">
-                    {MOCK_SEMESTRES.map(sem => (
+                    {(resumo ? resumo.semestres.map(sem => (
+                      <div key={sem.id} className="flex items-center justify-between p-3 rounded-lg border">
+                        <div>
+                          <p className="font-medium text-sm">{sem.nome}</p>
+                          <p className="text-xs text-muted-foreground">{fmtDate(sem.data_inicio)} – {fmtDate(sem.data_fim)}</p>
+                        </div>
+                        <Badge variant="secondary">{sem.status}</Badge>
+                      </div>
+                    )) : MOCK_SEMESTRES.map(sem => (
                       <div key={sem.id} className="flex items-center justify-between p-3 rounded-lg border">
                         <div>
                           <p className="font-medium text-sm">{sem.nome}</p>
@@ -1247,7 +1276,10 @@ function AppShell({ currentUser, onLogout }: { currentUser: SessaoUsuario; onLog
                           {ETAPA_LABELS[sem.statusEtapa]}
                         </Badge>
                       </div>
-                    ))}
+                    )))}
+                    {resumo && resumo.semestres.length === 0 && (
+                      <p className="text-sm text-muted-foreground text-center py-3">Nenhum semestre cadastrado.</p>
+                    )}
                     {!isAdmin && (
                       <Button variant="ghost" className="w-full text-muted-foreground" onClick={() => setCurrentView('semestres')}>
                         Ver todos os semestres
@@ -1999,25 +2031,17 @@ function AppShell({ currentUser, onLogout }: { currentUser: SessaoUsuario; onLog
                     <CardTitle className="text-sm font-medium text-muted-foreground">Carga Máxima Semanal</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold text-primary">{maxHoras}h</div>
-                    <p className="text-xs text-muted-foreground mt-1">{REGIME_LABELS[profLogado?.regimeTrabalho ?? 'DE']}</p>
+                    <div className="text-2xl font-bold text-primary">{resumoProf?.carga_maxima ?? maxHoras}h</div>
+                    <p className="text-xs text-muted-foreground mt-1">{REGIME_LABELS[(resumoProf?.regime_trabalho as RegimeTrabalho) ?? profLogado?.regimeTrabalho ?? 'DE']}</p>
                   </CardContent>
                 </Card>
                 <Card>
                   <CardHeader className="pb-2">
-                    <CardTitle className="text-sm font-medium text-muted-foreground">Aulas Já Alocadas</CardTitle>
+                    <CardTitle className="text-sm font-medium text-muted-foreground">Disciplinas Atribuídas</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold">{horasAlocadas}h</div>
-                    <div className="mt-2 h-1.5 bg-muted rounded-full overflow-hidden">
-                      <motion.div
-                        className="h-full bg-primary rounded-full"
-                        initial={{ width: 0 }}
-                        animate={{ width: `${Math.min(100, (horasAlocadas / maxHoras) * 100)}%` }}
-                        transition={{ duration: 0.8, ease: 'easeOut' }}
-                      />
-                    </div>
-                    <p className="text-xs text-muted-foreground mt-1">{horasAlocadas}/{maxHoras}h utilizadas</p>
+                    <div className="text-2xl font-bold">{resumoProf?.disciplinas_atribuidas ?? horasAlocadas}</div>
+                    <p className="text-xs text-muted-foreground mt-1">Ofertas vinculadas a você no semestre</p>
                   </CardContent>
                 </Card>
                 <Card>

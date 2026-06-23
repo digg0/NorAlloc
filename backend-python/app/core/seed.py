@@ -7,6 +7,7 @@ teste da integração de login. As senhas são gravadas já com hash bcrypt.
 from app.core.database import SessionLocal
 from app.core.security import get_password_hash
 from app.models.usuario import Usuario
+from app.models.professor import Professor
 
 # (nome, email, senha, tipo)
 USUARIOS_DEMO = [
@@ -14,6 +15,16 @@ USUARIOS_DEMO = [
     ("Saulo Anderson", "saulo.anderson@ifce.edu.br", "123456", "COORDENADOR"),
     ("Ana Silva", "ana.silva@ifce.edu.br", "prof123", "PROFESSOR"),
 ]
+
+# Cadastro de docente para o usuário demo do tipo PROFESSOR, para que o
+# dashboard dele já tenha dados reais (regime, carga máxima, etc.).
+PROFESSOR_DEMO = {
+    "nome": "Ana Silva",
+    "email": "ana.silva@ifce.edu.br",
+    "regime_trabalho": "DE",
+    "area": "Computação",
+    "carga_maxima": 20,
+}
 
 
 def seed_usuarios_demo() -> None:
@@ -33,6 +44,11 @@ def seed_usuarios_demo() -> None:
                 )
             )
             criados += 1
+
+        if not db.query(Professor).filter(Professor.email == PROFESSOR_DEMO["email"]).first():
+            db.add(Professor(**PROFESSOR_DEMO))
+            criados += 1
+
         if criados:
             db.commit()
     finally:
