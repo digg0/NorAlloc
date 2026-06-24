@@ -40,6 +40,8 @@ class ProfessorBase(BaseModel):
     regime_trabalho: str = Field(..., description="Regime de trabalho (DE, 40H, 20H)")
     area: Optional[str] = Field(None, description="Área de atuação")
     carga_maxima: Optional[int] = Field(None, gt=0, description="Carga horária máxima semanal")
+    afastado: bool = Field(False, description="Se o professor está afastado")
+    motivo_afastamento: Optional[str] = Field(None, description="Motivo do afastamento, se houver")
 
 
 class ProfessorCreate(ProfessorBase):
@@ -54,6 +56,8 @@ class ProfessorUpdate(BaseModel):
     regime_trabalho: Optional[str] = None
     area: Optional[str] = None
     carga_maxima: Optional[int] = Field(None, gt=0)
+    afastado: Optional[bool] = None
+    motivo_afastamento: Optional[str] = None
 
 
 class ProfessorResponse(ProfessorBase):

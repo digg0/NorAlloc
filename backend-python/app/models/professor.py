@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, ForeignKey
+from sqlalchemy import Column, Integer, String, Boolean, ForeignKey
 from sqlalchemy.orm import relationship
 
 from app.core.database import Base
@@ -16,5 +16,7 @@ class Professor(Base):
     regime_trabalho = Column(String, nullable=False)
     area = Column(String, nullable=True)
     carga_maxima = Column(Integer, nullable=True)
+    afastado = Column(Boolean, nullable=False, default=False)
+    motivo_afastamento = Column(String, nullable=True)
 
     usuario = relationship("Usuario")

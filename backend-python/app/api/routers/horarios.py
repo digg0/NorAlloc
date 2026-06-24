@@ -19,12 +19,18 @@ def verificar_admin():
     response_model=List[HorarioResponse],
     dependencies=[Depends(verificar_admin)],
 )
-def listar_horarios(turno: Optional[str] = None, db: Session = Depends(get_db)):
-    """Lista todos os horários cadastrados. Aceita filtro opcional por turno."""
+def listar_horarios(
+    turno: Optional[str] = None,
+    dia_semana: Optional[str] = None,
+    db: Session = Depends(get_db),
+):
+    """Lista todos os horários cadastrados. Aceita filtro opcional por turno e dia_semana."""
     query = db.query(Horario)
     if turno:
         query = query.filter(Horario.turno == turno.strip().upper())
-    return query.order_by(Horario.turno, Horario.hora_inicio).all()
+    if dia_semana:
+        query = query.filter(Horario.dia_semana == dia_semana.strip().upper())
+    return query.order_by(Horario.dia_semana, Horario.turno, Horario.hora_inicio).all()
 
 
 @router.get(
@@ -53,6 +59,7 @@ def criar_horario(dados: HorarioCreate, db: Session = Depends(get_db)):
     existente = (
         db.query(Horario)
         .filter(
+            Horario.dia_semana == dados.dia_semana,
             Horario.turno == dados.turno,
             Horario.hora_inicio == dados.hora_inicio,
             Horario.hora_fim == dados.hora_fim,
@@ -62,10 +69,11 @@ def criar_horario(dados: HorarioCreate, db: Session = Depends(get_db)):
     if existente:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Já existe um horário com este turno, hora de início e hora de fim.",
+            detail="Já existe um horário com este dia, turno, hora de início e hora de fim.",
         )
 
     novo = Horario(
+        dia_semana=dados.dia_semana,
         turno=dados.turno,
         hora_inicio=dados.hora_inicio,
         hora_fim=dados.hora_fim,

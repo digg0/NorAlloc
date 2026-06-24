@@ -65,7 +65,9 @@ def criar_professor(prof_in: ProfessorCreate, db: Session = Depends(get_db)):
         email=prof_in.email,
         regime_trabalho=prof_in.regime_trabalho,
         area=prof_in.area,
-        carga_maxima=prof_in.carga_maxima
+        carga_maxima=prof_in.carga_maxima,
+        afastado=prof_in.afastado,
+        motivo_afastamento=prof_in.motivo_afastamento,
     )
 
     db.add(novo_professor)
