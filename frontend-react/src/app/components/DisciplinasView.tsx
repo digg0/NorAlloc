@@ -4,7 +4,12 @@ import { listarCursos, type CursoUI } from '../services/cursos';
 
 const emptyForm: DisciplinaFormData = { nome: '', cursoId: 0, cargaHoraria: 1 };
 
-export function DisciplinasView() {
+interface DisciplinasViewProps {
+  /** Quando informado (coordenador), trava o curso da disciplina e esconde o select. */
+  cursoFixo?: { id: number; nome: string } | null;
+}
+
+export function DisciplinasView({ cursoFixo }: DisciplinasViewProps) {
   const [disciplinas, setDisciplinas] = useState<DisciplinaBackendUI[]>([]);
   const [cursos, setCursos] = useState<CursoUI[]>([]);
   const [loading, setLoading] = useState(true);
@@ -26,7 +31,11 @@ export function DisciplinasView() {
 
   const nomeCurso = (id: number) => cursos.find((c) => c.id === id)?.nome ?? `Curso #${id}`;
 
-  const abrirNovo = () => { setForm({ ...emptyForm, cursoId: cursos[0]?.id ?? 0 }); setFormErro(''); setModal({ open: true, editId: null }); };
+  const abrirNovo = () => {
+    setForm({ ...emptyForm, cursoId: cursoFixo?.id ?? cursos[0]?.id ?? 0 });
+    setFormErro('');
+    setModal({ open: true, editId: null });
+  };
   const abrirEdicao = (d: DisciplinaBackendUI) => {
     setForm({ nome: d.nome, cursoId: d.cursoId, cargaHoraria: d.cargaHoraria });
     setFormErro('');
@@ -121,14 +130,18 @@ export function DisciplinasView() {
 
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-1">Curso</label>
-              <select
-                value={form.cursoId}
-                onChange={(e) => setForm((f) => ({ ...f, cursoId: Number(e.target.value) }))}
-                className="w-full border rounded-lg px-3 py-2 text-sm"
-              >
-                <option value={0}>Selecione…</option>
-                {cursos.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
-              </select>
+              {cursoFixo ? (
+                <p className="w-full border rounded-lg px-3 py-2 text-sm bg-gray-50 text-gray-600">{cursoFixo.nome}</p>
+              ) : (
+                <select
+                  value={form.cursoId}
+                  onChange={(e) => setForm((f) => ({ ...f, cursoId: Number(e.target.value) }))}
+                  className="w-full border rounded-lg px-3 py-2 text-sm"
+                >
+                  <option value={0}>Selecione…</option>
+                  {cursos.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
+                </select>
+              )}
             </div>
 
             <div>

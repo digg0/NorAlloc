@@ -62,14 +62,37 @@ DISCIPLINAS = [
     ("Redes de Computadores", "REDES DE COMPUTADORES", 4),
 ]
 
-# (dia_semana, turno, hora_inicio, hora_fim)
+# Grade-padrão (IFCE Campus Tauá): 4 aulas de manhã, 4 de tarde, 5 de noite.
+# (turno, hora_inicio, hora_fim) — apenas slots de AULA (intervalo/almoço não
+# são Horario, são só os espaços em branco entre eles).
+SLOTS_PADRAO = [
+    ("MANHA", datetime.time(7, 25), datetime.time(8, 25)),
+    ("MANHA", datetime.time(8, 25), datetime.time(9, 25)),
+    # intervalo 09:25–09:50
+    ("MANHA", datetime.time(9, 50), datetime.time(10, 50)),
+    ("MANHA", datetime.time(10, 50), datetime.time(11, 50)),
+    # almoço 11:50–13:00
+    ("TARDE", datetime.time(13, 0), datetime.time(14, 0)),
+    ("TARDE", datetime.time(14, 0), datetime.time(15, 0)),
+    # intervalo 15:00–15:25
+    ("TARDE", datetime.time(15, 25), datetime.time(16, 25)),
+    ("TARDE", datetime.time(16, 25), datetime.time(17, 25)),
+    # janta 17:25–18:20
+    ("NOITE", datetime.time(18, 20), datetime.time(19, 10)),
+    ("NOITE", datetime.time(19, 10), datetime.time(20, 0)),
+    # intervalo 20:00–20:10
+    ("NOITE", datetime.time(20, 10), datetime.time(21, 0)),
+    ("NOITE", datetime.time(21, 0), datetime.time(21, 50)),
+    ("NOITE", datetime.time(21, 50), datetime.time(22, 40)),
+]
+
+DIAS_UTEIS = ["SEGUNDA", "TERCA", "QUARTA", "QUINTA", "SEXTA"]
+
+# (dia_semana, turno, hora_inicio, hora_fim) — grade completa: 5 dias x 13 slots.
 HORARIOS = [
-    ("SEGUNDA", "MANHA", datetime.time(7, 30), datetime.time(8, 20)),
-    ("SEGUNDA", "MANHA", datetime.time(8, 20), datetime.time(9, 10)),
-    ("QUARTA", "MANHA", datetime.time(7, 30), datetime.time(8, 20)),
-    ("QUARTA", "MANHA", datetime.time(8, 20), datetime.time(9, 10)),
-    ("SEXTA", "MANHA", datetime.time(7, 30), datetime.time(8, 20)),
-    ("SEXTA", "MANHA", datetime.time(8, 20), datetime.time(9, 10)),
+    (dia, turno, hora_inicio, hora_fim)
+    for dia in DIAS_UTEIS
+    for turno, hora_inicio, hora_fim in SLOTS_PADRAO
 ]
 
 # (turma_nome, disciplina_nome, professor_email, carga_horaria)

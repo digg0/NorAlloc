@@ -62,8 +62,7 @@ def _slot_codes_por_horario(horarios: List[Horario]) -> Dict[int, str]:
             continue
         lista.sort(key=lambda h: h.hora_inicio)
         for indice, h in enumerate(lista, start=1):
-            if indice <= 4:
-                codigos[h.id] = f"{dia_c}_{letra}{indice}"
+            codigos[h.id] = f"{dia_c}_{letra}{indice}"
     return codigos
 
 

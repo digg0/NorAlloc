@@ -5,10 +5,7 @@ import { listarDisciplinasBackend, type DisciplinaBackendUI } from '../services/
 import { listarProfessores, type ProfessorUI } from '../services/professores';
 import { listarHorarios, type HorarioUI } from '../services/horarios';
 import { gerarGrade, listarAlocacoesPorSemestre, moverAlocacao, type AlocacaoUI } from '../services/alocacoes';
-
-const DIA_LABEL: Record<string, string> = {
-  SEGUNDA: 'Segunda', TERCA: 'Terça', QUARTA: 'Quarta', QUINTA: 'Quinta', SEXTA: 'Sexta', SABADO: 'Sábado',
-};
+import { DIAS_UTEIS, DIA_LABEL, LINHAS_GRADE_PADRAO } from '../services/gradeSlots';
 
 export function GradeView() {
   const [semestres, setSemestres] = useState<SemestreUI[]>([]);
@@ -22,7 +19,8 @@ export function GradeView() {
   const [carregando, setCarregando] = useState(true);
   const [gerando, setGerando] = useState(false);
   const [mensagem, setMensagem] = useState<{ tipo: 'ok' | 'erro'; texto: string } | null>(null);
-  const [moverSelecao, setMoverSelecao] = useState<Record<number, number>>({});
+  const [editando, setEditando] = useState<number | null>(null);
+  const [novoHorarioId, setNovoHorarioId] = useState<number>(0);
 
   useEffect(() => {
     Promise.all([listarSemestres(), listarTurmasBackend(), listarDisciplinasBackend(), listarProfessores(), listarHorarios()])
@@ -47,7 +45,6 @@ export function GradeView() {
 
   useEffect(() => { carregarAlocacoes(semestreId); }, [semestreId]);
 
-  const nomeTurma = (id: number) => turmas.find((t) => t.id === id)?.nome ?? `Turma #${id}`;
   const nomeDisciplina = (id: number) => disciplinas.find((d) => d.id === id)?.nome ?? `Disciplina #${id}`;
   const nomeProfessor = (id: number | null) => (id ? professores.find((p) => p.id === id)?.nome ?? `Professor #${id}` : '—');
 
@@ -57,9 +54,6 @@ export function GradeView() {
       const turmaId = a.oferta?.turma_id ?? -1;
       (grupos[turmaId] ??= []).push(a);
     }
-    Object.values(grupos).forEach((lista) =>
-      lista.sort((a, b) => (a.horario?.dia_semana ?? '').localeCompare(b.horario?.dia_semana ?? '') || (a.horario?.hora_inicio ?? '').localeCompare(b.horario?.hora_inicio ?? ''))
-    );
     return grupos;
   }, [alocacoes]);
 
@@ -78,11 +72,16 @@ export function GradeView() {
     }
   };
 
-  const handleMover = async (alocacaoId: number) => {
-    const novoHorarioId = moverSelecao[alocacaoId];
+  const iniciarMover = (alocacaoId: number) => {
+    setEditando(alocacaoId);
+    setNovoHorarioId(0);
+  };
+
+  const confirmarMover = async (alocacaoId: number) => {
     if (!novoHorarioId) return;
     try {
       await moverAlocacao(alocacaoId, novoHorarioId);
+      setEditando(null);
       carregarAlocacoes(semestreId);
     } catch (err: any) {
       setMensagem({ tipo: 'erro', texto: err?.message || 'Erro ao mover aula.' });
@@ -119,62 +118,96 @@ export function GradeView() {
 
       {carregando ? (
         <p className="text-sm text-gray-400">Carregando…</p>
-      ) : Object.keys(porTurma).length === 0 ? (
-        <p className="text-sm text-gray-400">Nenhuma alocação para este semestre ainda. Gere a grade para começar.</p>
+      ) : turmas.length === 0 ? (
+        <p className="text-sm text-gray-400">Nenhuma turma cadastrada.</p>
       ) : (
-        <div className="space-y-4">
-          {Object.entries(porTurma).map(([turmaId, lista]) => (
-            <div key={turmaId} className="bg-white border rounded-xl overflow-hidden">
-              <div className="px-4 py-2.5 bg-gray-50 border-b font-medium text-sm text-gray-700">
-                {nomeTurma(Number(turmaId))}
+        <div className="space-y-6">
+          {turmas.map((turma) => {
+            const lista = porTurma[turma.id] ?? [];
+            // mapa "HH:MM_DIA" -> alocação, para achar rapidamente a aula de cada célula
+            const porCelula = new Map<string, AlocacaoUI>();
+            for (const a of lista) {
+              if (!a.horario) continue;
+              const chave = `${a.horario.dia_semana}_${a.horario.hora_inicio.slice(0, 5)}`;
+              porCelula.set(chave, a);
+            }
+
+            return (
+              <div key={turma.id} className="bg-white border rounded-xl overflow-hidden">
+                <div className="px-4 py-2.5 bg-gray-50 border-b font-medium text-sm text-gray-700">
+                  {turma.nome} {lista.length === 0 && <span className="text-gray-400 font-normal">— sem alocações</span>}
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-xs">
+                    <thead className="text-gray-500 uppercase">
+                      <tr>
+                        <th className="text-left px-3 py-2 w-28">Horário</th>
+                        {DIAS_UTEIS.map((dia) => (
+                          <th key={dia} className="text-center px-3 py-2">{DIA_LABEL[dia]}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y">
+                      {LINHAS_GRADE_PADRAO.map((linha, i) => {
+                        if (linha.tipo === 'pausa') {
+                          return (
+                            <tr key={i} className="bg-gray-50/70">
+                              <td colSpan={DIAS_UTEIS.length + 1} className="text-center px-3 py-1 text-gray-400 italic">
+                                {linha.label} ({linha.horaInicio}–{linha.horaFim})
+                              </td>
+                            </tr>
+                          );
+                        }
+                        return (
+                          <tr key={i}>
+                            <td className="px-3 py-2 text-gray-500 whitespace-nowrap">{linha.horaInicio}–{linha.horaFim}</td>
+                            {DIAS_UTEIS.map((dia) => {
+                              const aloc = porCelula.get(`${dia}_${linha.horaInicio}`);
+                              if (!aloc) return <td key={dia} className="px-2 py-2 text-center text-gray-300">—</td>;
+                              const estaEditando = editando === aloc.id;
+                              return (
+                                <td key={dia} className="px-2 py-2 align-top">
+                                  {estaEditando ? (
+                                    <div className="flex flex-col gap-1 items-center">
+                                      <select
+                                        value={novoHorarioId}
+                                        onChange={(e) => setNovoHorarioId(Number(e.target.value))}
+                                        className="border rounded-md px-1 py-0.5 text-[11px] w-full"
+                                      >
+                                        <option value={0}>Novo horário…</option>
+                                        {horarios.map((h) => (
+                                          <option key={h.id} value={h.id}>
+                                            {DIA_LABEL[h.diaSemana] ?? h.diaSemana} {h.horaInicio.slice(0, 5)}
+                                          </option>
+                                        ))}
+                                      </select>
+                                      <div className="flex gap-1">
+                                        <button onClick={() => confirmarMover(aloc.id)} disabled={!novoHorarioId} className="text-[11px] text-emerald-600 font-medium disabled:text-gray-300">Mover</button>
+                                        <button onClick={() => setEditando(null)} className="text-[11px] text-gray-400">Cancelar</button>
+                                      </div>
+                                    </div>
+                                  ) : (
+                                    <button
+                                      onClick={() => iniciarMover(aloc.id)}
+                                      title="Clique para mover esta aula"
+                                      className="w-full text-left rounded-md bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 px-2 py-1.5 transition-colors"
+                                    >
+                                      <p className="font-medium text-emerald-900 leading-tight">{aloc.oferta ? nomeDisciplina(aloc.oferta.disciplina_id) : '—'}</p>
+                                      <p className="text-emerald-600 leading-tight">{aloc.oferta ? nomeProfessor(aloc.oferta.professor_id) : ''}</p>
+                                    </button>
+                                  )}
+                                </td>
+                              );
+                            })}
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
               </div>
-              <table className="w-full text-sm">
-                <thead className="text-gray-500 text-xs uppercase">
-                  <tr>
-                    <th className="text-left px-4 py-2">Dia</th>
-                    <th className="text-left px-4 py-2">Horário</th>
-                    <th className="text-left px-4 py-2">Disciplina</th>
-                    <th className="text-left px-4 py-2">Professor</th>
-                    <th className="text-left px-4 py-2">Mover para</th>
-                    <th className="px-4 py-2" />
-                  </tr>
-                </thead>
-                <tbody className="divide-y">
-                  {lista.map((a) => (
-                    <tr key={a.id}>
-                      <td className="px-4 py-2">{a.horario ? DIA_LABEL[a.horario.dia_semana] ?? a.horario.dia_semana : '—'}</td>
-                      <td className="px-4 py-2">{a.horario ? `${a.horario.hora_inicio.slice(0, 5)}–${a.horario.hora_fim.slice(0, 5)}` : '—'}</td>
-                      <td className="px-4 py-2">{a.oferta ? nomeDisciplina(a.oferta.disciplina_id) : '—'}</td>
-                      <td className="px-4 py-2">{a.oferta ? nomeProfessor(a.oferta.professor_id) : '—'}</td>
-                      <td className="px-4 py-2">
-                        <select
-                          value={moverSelecao[a.id] ?? 0}
-                          onChange={(e) => setMoverSelecao((m) => ({ ...m, [a.id]: Number(e.target.value) }))}
-                          className="border rounded-md px-2 py-1 text-xs"
-                        >
-                          <option value={0}>Selecionar horário…</option>
-                          {horarios.map((h) => (
-                            <option key={h.id} value={h.id}>
-                              {DIA_LABEL[h.diaSemana] ?? h.diaSemana} {h.horaInicio.slice(0, 5)}
-                            </option>
-                          ))}
-                        </select>
-                      </td>
-                      <td className="px-4 py-2">
-                        <button
-                          onClick={() => handleMover(a.id)}
-                          disabled={!moverSelecao[a.id]}
-                          className="text-xs font-medium text-[#1B4332] hover:underline disabled:text-gray-300"
-                        >
-                          Mover
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>

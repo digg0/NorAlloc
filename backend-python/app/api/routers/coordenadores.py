@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from typing import List
 
 from app.core.database import get_db
+from app.core.deps import obter_usuario_atual
 from app.core.security import get_password_hash
 from app.models.coordenador import Coordenador
 from app.models.usuario import Usuario
@@ -15,6 +16,18 @@ router = APIRouter(prefix="/api/coordenadores", tags=["Módulo de Cadastros Base
 def verificar_admin():
     pass # Permite testar os endpoints agora
 # ---------------------------------------------------------
+
+@router.get("/me", response_model=CoordenadorResponse)
+def meu_coordenador(usuario: Usuario = Depends(obter_usuario_atual), db: Session = Depends(get_db)):
+    """Retorna o registro de coordenador do usuário logado (usado pelo
+    frontend para travar o curso nos formulários de turma/disciplina/oferta)."""
+    if usuario.tipo != "COORDENADOR":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Usuário não é coordenador.")
+    coordenador = db.query(Coordenador).filter(Coordenador.usuario_id == usuario.id, Coordenador.ativo == True).first()
+    if not coordenador:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Coordenador não encontrado.")
+    return coordenador
+
 
 @router.get("", response_model=List[CoordenadorResponse], dependencies=[Depends(verificar_admin)])
 def listar_coordenadores(db: Session = Depends(get_db)):

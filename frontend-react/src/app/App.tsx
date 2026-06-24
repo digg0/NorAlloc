@@ -16,6 +16,8 @@ import { getResumoGeral, getResumoProfessor, type ResumoGeral, type ResumoProfes
 import { CursosView } from './components/CursosView';
 import { TurmasView } from './components/TurmasView';
 import { DisciplinasView } from './components/DisciplinasView';
+import { getMeuCoordenador, type MeuCoordenadorUI } from './services/coordenadorAtual';
+import { listarCursos as listarCursosReais } from './services/cursos';
 import { OfertasView } from './components/OfertasView';
 import { DisponibilidadeTurmaView } from './components/DisponibilidadeTurmaView';
 import { GradeView } from './components/GradeView';
@@ -759,6 +761,25 @@ function AppShell({ currentUser, onLogout }: { currentUser: SessaoUsuario; onLog
       getResumoGeral().then(setResumo).catch(() => {});
     }
   }, [isProf]);
+
+  // Coordenador: trava o curso nos formulários de turma/disciplina (o backend
+  // já restringe os dados retornados, isso só evita mostrar um seletor com
+  // todos os cursos quando o coordenador só pode usar o próprio).
+  const [meuCoordenador, setMeuCoordenador] = useState<MeuCoordenadorUI | null>(null);
+  const [meuCursoFixo, setMeuCursoFixo] = useState<{ id: number; nome: string } | null>(null);
+  useEffect(() => {
+    if (isAdmin || isProf) return;
+    getMeuCoordenador()
+      .then((coord) => {
+        setMeuCoordenador(coord);
+        if (!coord) return;
+        return listarCursosReais().then((cursos) => {
+          const curso = cursos.find((c) => c.id === coord.cursoId);
+          setMeuCursoFixo(curso ? { id: curso.id, nome: curso.nome } : null);
+        });
+      })
+      .catch(() => {});
+  }, [isAdmin, isProf]);
   const [disciplinas, setDisciplinas] = useState<Disciplina[]>([...MOCK_DISCIPLINAS]);
   const [turmas, setTurmas] = useState<Turma[]>([...MOCK_TURMAS]);
 
@@ -1670,7 +1691,7 @@ function AppShell({ currentUser, onLogout }: { currentUser: SessaoUsuario; onLog
                 <h2 className="text-2xl font-bold tracking-tight">Disciplinas</h2>
                 <p className="text-muted-foreground">Matriz curricular por curso.</p>
               </div>
-              <DisciplinasView />
+              <DisciplinasView cursoFixo={meuCursoFixo} />
             </motion.div>
           )}
 
@@ -1681,7 +1702,7 @@ function AppShell({ currentUser, onLogout }: { currentUser: SessaoUsuario; onLog
                 <h2 className="text-2xl font-bold tracking-tight">Turmas</h2>
                 <p className="text-muted-foreground">Turmas por curso e semestre.</p>
               </div>
-              <TurmasView />
+              <TurmasView cursoFixo={meuCursoFixo} />
             </motion.div>
           )}
 

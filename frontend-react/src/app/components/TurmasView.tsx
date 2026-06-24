@@ -5,7 +5,12 @@ import { listarSemestres, type SemestreUI } from '../services/semestres';
 
 const emptyForm: TurmaFormData = { nome: '', cursoId: null, semestreId: null, semestreNivel: null };
 
-export function TurmasView() {
+interface TurmasViewProps {
+  /** Quando informado (coordenador), trava o curso da turma e esconde o select. */
+  cursoFixo?: { id: number; nome: string } | null;
+}
+
+export function TurmasView({ cursoFixo }: TurmasViewProps) {
   const [turmas, setTurmas] = useState<TurmaBackendUI[]>([]);
   const [cursos, setCursos] = useState<CursoUI[]>([]);
   const [semestres, setSemestres] = useState<SemestreUI[]>([]);
@@ -29,7 +34,11 @@ export function TurmasView() {
   const nomeCurso = (id: number | null) => (id ? cursos.find((c) => c.id === id)?.nome ?? `Curso #${id}` : '—');
   const nomeSemestre = (id: number | null) => (id ? semestres.find((s) => s.id === id)?.nome ?? `Semestre #${id}` : '—');
 
-  const abrirNovo = () => { setForm(emptyForm); setFormErro(''); setModal({ open: true, editId: null }); };
+  const abrirNovo = () => {
+    setForm({ ...emptyForm, cursoId: cursoFixo?.id ?? null });
+    setFormErro('');
+    setModal({ open: true, editId: null });
+  };
   const abrirEdicao = (t: TurmaBackendUI) => {
     setForm({ nome: t.nome, cursoId: t.cursoId, semestreId: t.semestreId, semestreNivel: t.semestreNivel });
     setFormErro('');
@@ -123,14 +132,18 @@ export function TurmasView() {
 
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-1">Curso</label>
-              <select
-                value={form.cursoId ?? 0}
-                onChange={(e) => setForm((f) => ({ ...f, cursoId: Number(e.target.value) || null }))}
-                className="w-full border rounded-lg px-3 py-2 text-sm"
-              >
-                <option value={0}>Selecione…</option>
-                {cursos.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
-              </select>
+              {cursoFixo ? (
+                <p className="w-full border rounded-lg px-3 py-2 text-sm bg-gray-50 text-gray-600">{cursoFixo.nome}</p>
+              ) : (
+                <select
+                  value={form.cursoId ?? 0}
+                  onChange={(e) => setForm((f) => ({ ...f, cursoId: Number(e.target.value) || null }))}
+                  className="w-full border rounded-lg px-3 py-2 text-sm"
+                >
+                  <option value={0}>Selecione…</option>
+                  {cursos.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
+                </select>
+              )}
             </div>
 
             <div>
