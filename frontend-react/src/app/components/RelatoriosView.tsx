@@ -3,7 +3,12 @@ import { listarCursos, type CursoUI } from '../services/cursos';
 import { listarSemestres, type SemestreUI } from '../services/semestres';
 import { getRelatorio, baixarRelatorioPdf, type RelatorioUI } from '../services/relatorios';
 
-export function RelatoriosView() {
+interface RelatoriosViewProps {
+  /** Quando informado (coordenador), trava o relatório no próprio curso. */
+  cursoFixo?: { id: number; nome: string } | null;
+}
+
+export function RelatoriosView({ cursoFixo }: RelatoriosViewProps) {
   const [cursos, setCursos] = useState<CursoUI[]>([]);
   const [semestres, setSemestres] = useState<SemestreUI[]>([]);
   const [cursoId, setCursoId] = useState<number>(0);
@@ -14,6 +19,13 @@ export function RelatoriosView() {
   const [erro, setErro] = useState('');
 
   useEffect(() => {
+    if (cursoFixo) {
+      setCursoId(cursoFixo.id);
+      listarSemestres()
+        .then((s) => { setSemestres(s); if (s.length > 0) setSemestreId(s[0].id); })
+        .catch((err) => setErro(err?.message || 'Falha ao carregar semestres.'));
+      return;
+    }
     Promise.all([listarCursos(), listarSemestres()])
       .then(([c, s]) => {
         setCursos(c);
@@ -22,7 +34,7 @@ export function RelatoriosView() {
         if (s.length > 0) setSemestreId(s[0].id);
       })
       .catch((err) => setErro(err?.message || 'Falha ao carregar cursos/semestres.'));
-  }, []);
+  }, [cursoFixo]);
 
   const buscar = () => {
     if (!cursoId || !semestreId) return;
@@ -53,9 +65,13 @@ export function RelatoriosView() {
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div className="flex items-center gap-3 flex-wrap">
           <label className="text-sm text-gray-600">Curso:</label>
-          <select value={cursoId} onChange={(e) => setCursoId(Number(e.target.value))} className="border rounded-lg px-3 py-2 text-sm">
-            {cursos.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
-          </select>
+          {cursoFixo ? (
+            <p className="border rounded-lg px-3 py-2 text-sm bg-gray-50 text-gray-600">{cursoFixo.nome}</p>
+          ) : (
+            <select value={cursoId} onChange={(e) => setCursoId(Number(e.target.value))} className="border rounded-lg px-3 py-2 text-sm">
+              {cursos.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
+            </select>
+          )}
           <label className="text-sm text-gray-600">Semestre:</label>
           <select value={semestreId} onChange={(e) => setSemestreId(Number(e.target.value))} className="border rounded-lg px-3 py-2 text-sm">
             {semestres.map((s) => <option key={s.id} value={s.id}>{s.nome}</option>)}

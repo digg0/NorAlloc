@@ -15,9 +15,14 @@ consecutivos no mesmo dia).
 Sobrecarga e janelas entre aulas não são tratadas aqui: a spec as define como
 alertas calculados dinamicamente (ver `validacao_service.py`), não como
 restrições do solver.
+
+Quando `curso_id` é informado (coordenador logado, restrito ao próprio
+curso), a geração abrange só as turmas daquele curso — mas os horários que
+professores compartilhados já ocupam em turmas de OUTROS cursos no mesmo
+semestre continuam bloqueados, para não gerar conflito entre cursos.
 """
 from collections import defaultdict
-from typing import Dict, List, Tuple
+from typing import Dict, List, Optional, Tuple
 
 from sqlalchemy.orm import Session
 from z3 import And, Bool, If, Not, Optimize, Sum, is_true, sat
@@ -66,8 +71,15 @@ def _slot_codes_por_horario(horarios: List[Horario]) -> Dict[int, str]:
     return codigos
 
 
-def gerar_grade(semestre_id: int, db: Session) -> GerarGradeResponse:
-    turmas = db.query(Turma).filter(Turma.semestre_id == semestre_id).all()
+def gerar_grade(semestre_id: int, db: Session, curso_id: Optional[int] = None) -> GerarGradeResponse:
+    """Gera a grade do semestre. Se `curso_id` for informado (coordenador
+    logado), gera apenas para as turmas daquele curso — mas continua
+    respeitando os horários já ocupados por professores compartilhados em
+    turmas de outros cursos no mesmo semestre."""
+    query_turmas = db.query(Turma).filter(Turma.semestre_id == semestre_id)
+    if curso_id is not None:
+        query_turmas = query_turmas.filter(Turma.curso_id == curso_id)
+    turmas = query_turmas.all()
     turma_ids = [t.id for t in turmas]
     if not turma_ids:
         return GerarGradeResponse(
@@ -119,6 +131,26 @@ def gerar_grade(semestre_id: int, db: Session) -> GerarGradeResponse:
         else []
     )
     bloqueios_professor = {r.professor_id: set(r.horarios_bloqueados or []) for r in restricoes}
+
+    # Horários que professores compartilhados já ocupam em turmas de OUTROS
+    # cursos no mesmo semestre (relevante quando curso_id restringe a busca
+    # a um único curso, mas o professor também leciona em outro).
+    ocupados_externos: Dict[int, set] = defaultdict(set)
+    if professor_ids:
+        outras_alocacoes = (
+            db.query(OfertaDisciplina.professor_id, Alocacao.horario_id)
+            .join(Alocacao, Alocacao.oferta_id == OfertaDisciplina.id)
+            .join(Turma, OfertaDisciplina.turma_id == Turma.id)
+            .filter(
+                Turma.semestre_id == semestre_id,
+                Turma.id.notin_(turma_ids),
+                OfertaDisciplina.professor_id.in_(professor_ids),
+            )
+            .all()
+        )
+        for professor_id, horario_id in outras_alocacoes:
+            ocupados_externos[professor_id].add(horario_id)
+
     preferencias_map = (
         {
             p.professor_id: p
@@ -134,6 +166,8 @@ def gerar_grade(semestre_id: int, db: Session) -> GerarGradeResponse:
         return disp_turma_map.get((turma_id, horario_id), True)
 
     def professor_disponivel(professor_id: int, horario_id: int) -> bool:
+        if horario_id in ocupados_externos.get(professor_id, set()):
+            return False
         codigo = slot_codes.get(horario_id)
         return not (codigo and codigo in bloqueios_professor.get(professor_id, set()))
 

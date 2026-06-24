@@ -2310,7 +2310,7 @@ function AppShell({ currentUser, onLogout }: { currentUser: SessaoUsuario; onLog
                 <h2 className="text-2xl font-bold tracking-tight">Relatórios</h2>
                 <p className="text-muted-foreground">Grade consolidada por curso e semestre, com resumo, professores envolvidos e alertas.</p>
               </div>
-              <RelatoriosView />
+              <RelatoriosView cursoFixo={meuCursoFixo} />
             </motion.div>
           )}
 

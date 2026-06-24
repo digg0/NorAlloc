@@ -15,11 +15,19 @@ from reportlab.platypus import (
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
+from app.core.deps import obter_curso_id_coordenador, obter_usuario_atual
 from app.models import Alocacao, Coordenador, Curso, OfertaDisciplina, Semestre, Turma
+from app.models.usuario import Usuario
 from app.schemas.relatorio import RelatorioResponse
 from app.services import validacao_service
 
 router = APIRouter(prefix="/api/relatorios", tags=["Módulo de Relatórios"])
+
+
+def _exigir_acesso_ao_curso(curso_id: int, usuario: Usuario, db: Session) -> None:
+    curso_id_coordenador = obter_curso_id_coordenador(usuario, db)
+    if curso_id_coordenador is not None and curso_id_coordenador != curso_id:
+        raise HTTPException(status_code=403, detail="Este relatório não pertence ao seu curso.")
 
 
 def _montar_relatorio(curso_id: int, semestre_id: int, db: Session) -> dict:
@@ -38,12 +46,9 @@ def _montar_relatorio(curso_id: int, semestre_id: int, db: Session) -> dict:
     turmas_db = (
         db.query(Turma).filter(Turma.curso_id == curso_id, Turma.semestre_id == semestre_id).all()
     )
-    turma_ids = [t.id for t in turmas_db]
 
     set_disciplinas = set()
     set_professores = set()
-    set_professor_ids = set()
-    set_oferta_ids = set()
     carga_total = 0
 
     lista_turmas_response = []
@@ -53,12 +58,10 @@ def _montar_relatorio(curso_id: int, semestre_id: int, db: Session) -> dict:
         ofertas = db.query(OfertaDisciplina).filter(OfertaDisciplina.turma_id == turma.id).all()
 
         for oferta in ofertas:
-            set_oferta_ids.add(oferta.id)
             if oferta.disciplina:
                 set_disciplinas.add(oferta.disciplina.nome)
             if oferta.professor:
                 set_professores.add(oferta.professor.nome)
-                set_professor_ids.add(oferta.professor.id)
 
             carga_total += oferta.carga_horaria or 0
 
@@ -75,14 +78,7 @@ def _montar_relatorio(curso_id: int, semestre_id: int, db: Session) -> dict:
 
         lista_turmas_response.append({"nome": turma.nome, "grade": grade_turma})
 
-    todos_alertas = validacao_service.validar_semestre(semestre_id, db)
-    alertas_do_curso = [
-        a
-        for a in todos_alertas
-        if (a["entidade_tipo"] == "turma" and a["entidade_id"] in turma_ids)
-        or (a["entidade_tipo"] == "professor" and a["entidade_id"] in set_professor_ids)
-        or (a["entidade_tipo"] == "oferta" and a["entidade_id"] in set_oferta_ids)
-    ]
+    alertas_do_curso = validacao_service.validar_semestre(semestre_id, db, curso_id=curso_id)
 
     return {
         "curso": curso.nome,
@@ -102,12 +98,24 @@ def _montar_relatorio(curso_id: int, semestre_id: int, db: Session) -> dict:
 
 
 @router.get("/curso/{curso_id}/semestre/{semestre_id}", response_model=RelatorioResponse)
-def emitir_relatorio(curso_id: int, semestre_id: int, db: Session = Depends(get_db)):
+def emitir_relatorio(
+    curso_id: int,
+    semestre_id: int,
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(obter_usuario_atual),
+):
+    _exigir_acesso_ao_curso(curso_id, usuario, db)
     return _montar_relatorio(curso_id, semestre_id, db)
 
 
 @router.get("/curso/{curso_id}/semestre/{semestre_id}/pdf")
-def emitir_relatorio_pdf(curso_id: int, semestre_id: int, db: Session = Depends(get_db)):
+def emitir_relatorio_pdf(
+    curso_id: int,
+    semestre_id: int,
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(obter_usuario_atual),
+):
+    _exigir_acesso_ao_curso(curso_id, usuario, db)
     dados = _montar_relatorio(curso_id, semestre_id, db)
 
     buffer = io.BytesIO()

@@ -6,7 +6,7 @@ Alertas" — calculados após geração automática ou edição manual).
 """
 from collections import defaultdict
 from datetime import datetime
-from typing import Dict, List, Tuple
+from typing import Dict, List, Optional, Tuple
 
 from sqlalchemy.orm import Session
 
@@ -26,8 +26,13 @@ def _gap_minutos(hora_fim, hora_inicio) -> int:
     return int((t2 - t1).total_seconds() // 60)
 
 
-def validar_semestre(semestre_id: int, db: Session) -> List[dict]:
-    turmas = db.query(Turma).filter(Turma.semestre_id == semestre_id).all()
+def validar_semestre(semestre_id: int, db: Session, curso_id: Optional[int] = None) -> List[dict]:
+    """Calcula os alertas do semestre. Se `curso_id` for informado (coordenador
+    logado), restringe o cálculo às turmas daquele curso."""
+    query = db.query(Turma).filter(Turma.semestre_id == semestre_id)
+    if curso_id is not None:
+        query = query.filter(Turma.curso_id == curso_id)
+    turmas = query.all()
     turma_by_id = {t.id: t for t in turmas}
     turma_ids = list(turma_by_id.keys())
 
