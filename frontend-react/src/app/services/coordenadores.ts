@@ -1,6 +1,5 @@
 import { apiFetch } from './api';
 
-// Formato vindo do backend.
 interface CoordenadorBackend {
   id: number;
   nome: string;
@@ -9,7 +8,6 @@ interface CoordenadorBackend {
   ativo: boolean;
 }
 
-// Formato usado na UI (igual ao type Coordenador do App.tsx).
 export interface CoordenadorUI {
   id: number;
   nome: string;
@@ -57,7 +55,6 @@ export async function atualizarCoordenador(
   id: number,
   f: CoordenadorFormData
 ): Promise<CoordenadorUI> {
-  // Só inclui a senha quando o campo foi preenchido (evita reescrever o hash).
   const body: Record<string, unknown> = {
     nome: f.nome,
     email: f.email,

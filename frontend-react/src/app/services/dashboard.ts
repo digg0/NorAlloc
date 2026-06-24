@@ -8,7 +8,6 @@ export interface SemestreResumo {
   status: string;
 }
 
-// Dashboard de admin/coordenador (contagens gerais).
 export interface ResumoGeral {
   professores: { total: number; de: number; h40: number; h20: number };
   disciplinas: number;
@@ -20,7 +19,6 @@ export interface ResumoGeral {
   semestre_atual: SemestreResumo | null;
 }
 
-// Dashboard do professor logado.
 export interface ResumoProfessor {
   tem_cadastro: boolean;
   nome: string | null;

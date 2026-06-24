@@ -2,7 +2,6 @@ import { apiFetch } from './api';
 
 export type StatusEtapa = 'OFERTAS' | 'RESTRICOES' | 'SIMULACAO' | 'CONCLUIDO';
 
-// Formato vindo do backend (snake_case).
 interface SemestreBackend {
   id: number;
   nome: string;
@@ -11,7 +10,6 @@ interface SemestreBackend {
   status: string;
 }
 
-// Formato usado na UI (igual ao type Semestre do App.tsx).
 export interface SemestreUI {
   id: number;
   nome: string;

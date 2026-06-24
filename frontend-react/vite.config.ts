@@ -19,25 +19,20 @@ function figmaAssetResolver() {
 export default defineConfig({
   plugins: [
     figmaAssetResolver(),
-    // The React and Tailwind plugins are both required for Make, even if
-    // Tailwind is not being actively used – do not remove them
     react(),
     tailwindcss(),
   ],
   resolve: {
     alias: {
-      // Alias @ to the src directory
       '@': path.resolve(__dirname, './src'),
     },
   },
 
   server: {
     host: true,
-    // No Docker/Windows o watcher nativo não recebe os eventos do bind mount,
-    // então o HMR não dispara. O polling garante o hot-reload das alterações.
+    port: 3000,
     watch: { usePolling: true },
   },
 
-  // File types to support raw imports. Never add .css, .tsx, or .ts files to this.
   assetsInclude: ['**/*.svg', '**/*.csv'],
 })

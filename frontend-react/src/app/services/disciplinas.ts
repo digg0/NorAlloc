@@ -1,6 +1,5 @@
 import { apiFetch } from './api';
 
-// Formato vindo do backend (snake_case).
 interface DisciplinaBackend {
   id: number;
   curso_id: number;
@@ -8,7 +7,6 @@ interface DisciplinaBackend {
   carga_horaria: number;
 }
 
-// Formato usado na UI (igual ao type Disciplina do App.tsx).
 export interface DisciplinaUI {
   id: number;
   nome: string;
@@ -26,7 +24,6 @@ export interface DisciplinaFormData {
 
 const STOPWORDS = new Set(['e', 'de', 'da', 'do', 'das', 'dos', 'para', 'a', 'o']);
 
-// O backend não persiste sigla; derivamos das iniciais do nome para exibição.
 function derivarSigla(nome: string): string {
   const palavras = nome.split(/\s+/).filter(p => p && !STOPWORDS.has(p.toLowerCase()));
   const iniciais = palavras.map(p => p[0]).join('').toUpperCase();
