@@ -31,6 +31,13 @@ export default defineConfig({
     },
   },
 
+  server: {
+    host: true,
+    // No Docker/Windows o watcher nativo não recebe os eventos do bind mount,
+    // então o HMR não dispara. O polling garante o hot-reload das alterações.
+    watch: { usePolling: true },
+  },
+
   // File types to support raw imports. Never add .css, .tsx, or .ts files to this.
   assetsInclude: ['**/*.svg', '**/*.csv'],
 })

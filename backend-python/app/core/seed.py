@@ -9,6 +9,7 @@ from app.core.security import get_password_hash
 from app.models.usuario import Usuario
 from app.models.professor import Professor
 from app.models.curso import Curso
+from app.models.coordenador import Coordenador
 
 # (nome, email, senha, tipo)
 USUARIOS_DEMO = [
@@ -68,6 +69,18 @@ def seed_usuarios_demo() -> None:
         if not db.query(Professor).filter(Professor.email == PROFESSOR_DEMO["email"]).first():
             db.add(Professor(**PROFESSOR_DEMO))
             criados += 1
+
+        # Backfill: coordenadores criados antes do vínculo com `usuarios` não
+        # conseguiam logar (401). Garante um acesso de login para cada um.
+        for coord in db.query(Coordenador).filter(Coordenador.ativo == True).all():
+            if not db.query(Usuario).filter(Usuario.email == coord.email).first():
+                db.add(Usuario(
+                    nome=coord.nome,
+                    email=coord.email,
+                    senha=coord.hashed_password,
+                    tipo="COORDENADOR",
+                ))
+                criados += 1
 
         if criados:
             db.commit()

@@ -43,8 +43,12 @@ class ProfessorBase(BaseModel):
 
 
 class ProfessorCreate(ProfessorBase):
-    """Schema para criar um novo professor."""
-    pass
+    """Schema para criar um novo professor.
+
+    Quando `password` é informado, também é criada uma conta de login
+    (usuarios, tipo PROFESSOR) para o docente — igual ao fluxo de coordenador.
+    """
+    password: Optional[str] = Field(None, min_length=8, description="Senha de acesso (opcional)")
 
 
 class ProfessorUpdate(BaseModel):
@@ -54,6 +58,7 @@ class ProfessorUpdate(BaseModel):
     regime_trabalho: Optional[str] = None
     area: Optional[str] = None
     carga_maxima: Optional[int] = Field(None, gt=0)
+    password: Optional[str] = Field(None, min_length=8, description="Nova senha de acesso (opcional)")
 
 
 class ProfessorResponse(ProfessorBase):

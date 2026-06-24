@@ -778,16 +778,20 @@ function AppShell({ currentUser, onLogout }: { currentUser: SessaoUsuario; onLog
   const [coordSearch, setCoordSearch] = useState('');
 
   // ── Professor CRUD ────────────────────────────────────────────────────────
-  type ProfForm = Omit<Professor, 'id'>;
-  const emptyProfForm: ProfForm = { nome: '', email: '', regimeTrabalho: 'DE', areaAtuacao: '' };
+  type ProfForm = Omit<Professor, 'id'> & { senha: string };
+  const emptyProfForm: ProfForm = { nome: '', email: '', regimeTrabalho: 'DE', areaAtuacao: '', senha: '' };
   const [profModal, setProfModal] = useState<{ open: boolean; editId: number | null }>({ open: false, editId: null });
   const [profForm, setProfForm] = useState<ProfForm>(emptyProfForm);
   const [profFormError, setProfFormError] = useState('');
+  const [profShowSenha, setProfShowSenha] = useState(false);
 
-  const openProfAdd = () => { setProfForm(emptyProfForm); setProfFormError(''); setProfModal({ open: true, editId: null }); };
-  const openProfEdit = (p: Professor) => { setProfForm({ nome: p.nome, email: p.email, regimeTrabalho: p.regimeTrabalho, areaAtuacao: p.areaAtuacao }); setProfFormError(''); setProfModal({ open: true, editId: p.id }); };
+  const openProfAdd = () => { setProfForm(emptyProfForm); setProfFormError(''); setProfShowSenha(false); setProfModal({ open: true, editId: null }); };
+  const openProfEdit = (p: Professor) => { setProfForm({ nome: p.nome, email: p.email, regimeTrabalho: p.regimeTrabalho, areaAtuacao: p.areaAtuacao, senha: '' }); setProfFormError(''); setProfShowSenha(false); setProfModal({ open: true, editId: p.id }); };
   const saveProf = async () => {
     if (!profForm.nome.trim() || !profForm.email.trim()) { setProfFormError('Nome e e-mail são obrigatórios.'); return; }
+    const novo = profModal.editId === null;
+    if (novo && profForm.senha.trim().length < 8) { setProfFormError('A senha de acesso deve ter no mínimo 8 caracteres.'); return; }
+    if (!novo && profForm.senha.trim() && profForm.senha.trim().length < 8) { setProfFormError('A nova senha deve ter no mínimo 8 caracteres.'); return; }
     try {
       if (profModal.editId !== null) {
         const atualizado = await atualizarProfessor(profModal.editId, profForm);
@@ -2512,6 +2516,29 @@ function AppShell({ currentUser, onLogout }: { currentUser: SessaoUsuario; onLog
                     <div>
                       <Label className="text-xs mb-1.5 block">Área de Atuação</Label>
                       <Input value={profForm.areaAtuacao} onChange={e => setProfForm(f => ({ ...f, areaAtuacao: e.target.value }))} placeholder="Ex.: Computação, Matemática..." />
+                    </div>
+                    <div>
+                      <Label className="text-xs mb-1.5 block">
+                        Senha de acesso <span className="text-destructive">*</span>
+                        {profModal.editId !== null && <span className="text-muted-foreground font-normal"> (deixe em branco para manter)</span>}
+                      </Label>
+                      <div className="relative">
+                        <Input
+                          type={profShowSenha ? 'text' : 'password'}
+                          value={profForm.senha}
+                          onChange={e => { setProfForm(f => ({ ...f, senha: e.target.value })); setProfFormError(''); }}
+                          placeholder="Mínimo 8 caracteres"
+                          className="pr-10"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setProfShowSenha(v => !v)}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                        >
+                          {profShowSenha ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        </button>
+                      </div>
+                      <p className="text-[11px] text-muted-foreground mt-1">Cria o acesso de login do professor (perfil Professor).</p>
                     </div>
                   </div>
                   <div className="px-6 py-4 border-t flex justify-end gap-2 bg-muted/30">
