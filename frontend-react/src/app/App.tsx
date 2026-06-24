@@ -6,13 +6,18 @@ import {
   ChevronRight, ChevronLeft, CheckCircle2, AlertCircle,
   Play, Save, Trash2, Search, Menu, GraduationCap, ShieldAlert,
   Edit, X, Check, LogOut, Eye, EyeOff, Lock, Mail, Ban, Camera,
-  Clock, Star, CalendarCheck
+  Clock, Star, CalendarCheck, BarChart3, ClipboardList, AlertTriangle
 } from 'lucide-react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { login as apiLogin, logout as apiLogout, getSessao, type SessaoUsuario } from './services/auth';
 import { listarProfessores, criarProfessor, atualizarProfessor, removerProfessor } from './services/professores';
 import { getResumoGeral, getResumoProfessor, type ResumoGeral, type ResumoProfessor } from './services/dashboard';
+import { OfertasView } from './components/OfertasView';
+import { DisponibilidadeTurmaView } from './components/DisponibilidadeTurmaView';
+import { GradeView } from './components/GradeView';
+import { AlertasView } from './components/AlertasView';
+import { RelatoriosView } from './components/RelatoriosView';
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -360,7 +365,7 @@ function TimeSlotGrid({ blocked, onChange }: TimeSlotGridProps) {
 
 // ── Main App ───────────────────────────────────────────────────────────────────
 
-type View = 'dashboard' | 'wizard' | 'professores' | 'disciplinas' | 'semestres' | 'turmas' | 'coordenadores' | 'perfil' | 'minha-agenda' | 'minha-disponibilidade' | 'disciplinas-preferidas';
+type View = 'dashboard' | 'wizard' | 'professores' | 'disciplinas' | 'semestres' | 'turmas' | 'coordenadores' | 'perfil' | 'minha-agenda' | 'minha-disponibilidade' | 'disciplinas-preferidas' | 'ofertas' | 'disponibilidade-turma' | 'grade' | 'alertas' | 'relatorios';
 
 type WizardData = {
   nome: string;
@@ -917,14 +922,20 @@ function AppShell({ currentUser, onLogout }: { currentUser: SessaoUsuario; onLog
     { view: 'professores',   label: 'Professores',   icon: <Users           className="mr-2 h-4 w-4" /> },
     { view: 'disciplinas',   label: 'Disciplinas',   icon: <BookOpen        className="mr-2 h-4 w-4" /> },
     { view: 'turmas',        label: 'Turmas',        icon: <GraduationCap   className="mr-2 h-4 w-4" /> },
+    { view: 'relatorios',    label: 'Relatórios',    icon: <BarChart3       className="mr-2 h-4 w-4" /> },
   ];
 
   const coordNavItems: { view: View; label: string; icon: React.ReactNode }[] = [
-    { view: 'dashboard',   label: 'Dashboard',   icon: <LayoutDashboard className="mr-2 h-4 w-4" /> },
-    { view: 'semestres',   label: 'Semestres',   icon: <Calendar        className="mr-2 h-4 w-4" /> },
-    { view: 'professores', label: 'Professores', icon: <Users           className="mr-2 h-4 w-4" /> },
-    { view: 'disciplinas', label: 'Disciplinas', icon: <BookOpen        className="mr-2 h-4 w-4" /> },
-    { view: 'turmas',      label: 'Turmas',      icon: <GraduationCap   className="mr-2 h-4 w-4" /> },
+    { view: 'dashboard',              label: 'Dashboard',                icon: <LayoutDashboard className="mr-2 h-4 w-4" /> },
+    { view: 'semestres',              label: 'Semestres',                icon: <Calendar        className="mr-2 h-4 w-4" /> },
+    { view: 'professores',            label: 'Professores',              icon: <Users           className="mr-2 h-4 w-4" /> },
+    { view: 'disciplinas',            label: 'Disciplinas',              icon: <BookOpen        className="mr-2 h-4 w-4" /> },
+    { view: 'turmas',                 label: 'Turmas',                   icon: <GraduationCap   className="mr-2 h-4 w-4" /> },
+    { view: 'ofertas',                label: 'Ofertas de Disciplina',    icon: <ClipboardList   className="mr-2 h-4 w-4" /> },
+    { view: 'disponibilidade-turma',  label: 'Disponibilidade de Turmas', icon: <CalendarCheck   className="mr-2 h-4 w-4" /> },
+    { view: 'grade',                  label: 'Grade Horária',            icon: <Play            className="mr-2 h-4 w-4" /> },
+    { view: 'alertas',                label: 'Alertas',                  icon: <AlertTriangle   className="mr-2 h-4 w-4" /> },
+    { view: 'relatorios',             label: 'Relatórios',               icon: <BarChart3       className="mr-2 h-4 w-4" /> },
   ];
 
   const profNavItems: { view: View; label: string; icon: React.ReactNode }[] = [
@@ -948,6 +959,11 @@ function AppShell({ currentUser, onLogout }: { currentUser: SessaoUsuario; onLog
     'minha-agenda':           'Minha Agenda',
     'minha-disponibilidade':  'Minha Disponibilidade',
     'disciplinas-preferidas': 'Disciplinas Preferidas',
+    ofertas:                  'Ofertas de Disciplina',
+    'disponibilidade-turma':  'Disponibilidade de Turmas',
+    grade:                    'Grade Horária',
+    alertas:                  'Alertas da Grade',
+    relatorios:                'Relatórios',
   };
 
   // ── Professor mock agenda data ────────────────────────────────────────────
@@ -2354,6 +2370,61 @@ function AppShell({ currentUser, onLogout }: { currentUser: SessaoUsuario; onLog
               <p className="text-xs text-muted-foreground">
                 Suas preferências são consideradas no processo de alocação automática, mas não garantem a atribuição.
               </p>
+            </motion.div>
+          )}
+
+          {/* ── OFERTAS DE DISCIPLINA ─────────────────────────────────── */}
+          {currentView === 'ofertas' && !isAdmin && !isProf && (
+            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
+              <div>
+                <h2 className="text-2xl font-bold tracking-tight">Ofertas de Disciplina</h2>
+                <p className="text-muted-foreground">Defina quais disciplinas serão ofertadas por turma — a entrada do solver de geração de grade.</p>
+              </div>
+              <OfertasView />
+            </motion.div>
+          )}
+
+          {/* ── DISPONIBILIDADE DE TURMAS ──────────────────────────────── */}
+          {currentView === 'disponibilidade-turma' && !isAdmin && !isProf && (
+            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
+              <div>
+                <h2 className="text-2xl font-bold tracking-tight">Disponibilidade de Turmas</h2>
+                <p className="text-muted-foreground">Configure os horários em que cada turma pode receber aulas.</p>
+              </div>
+              <DisponibilidadeTurmaView />
+            </motion.div>
+          )}
+
+          {/* ── GRADE HORÁRIA (geração e edição manual) ───────────────── */}
+          {currentView === 'grade' && !isAdmin && !isProf && (
+            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
+              <div>
+                <h2 className="text-2xl font-bold tracking-tight">Grade Horária</h2>
+                <p className="text-muted-foreground">Gere a grade automaticamente com o Solver Z3 e ajuste manualmente quando necessário.</p>
+              </div>
+              <GradeView />
+            </motion.div>
+          )}
+
+          {/* ── ALERTAS DA GRADE ───────────────────────────────────────── */}
+          {currentView === 'alertas' && !isAdmin && !isProf && (
+            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
+              <div>
+                <h2 className="text-2xl font-bold tracking-tight">Alertas da Grade</h2>
+                <p className="text-muted-foreground">Conflitos, sobrecargas e demais inconsistências calculadas dinamicamente sobre a grade atual.</p>
+              </div>
+              <AlertasView />
+            </motion.div>
+          )}
+
+          {/* ── RELATÓRIOS ─────────────────────────────────────────────── */}
+          {currentView === 'relatorios' && !isProf && (
+            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
+              <div>
+                <h2 className="text-2xl font-bold tracking-tight">Relatórios</h2>
+                <p className="text-muted-foreground">Grade consolidada por curso e semestre, com resumo, professores envolvidos e alertas.</p>
+              </div>
+              <RelatoriosView />
             </motion.div>
           )}
 
