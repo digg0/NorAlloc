@@ -13,12 +13,21 @@ import { twMerge } from 'tailwind-merge';
 import { login as apiLogin, logout as apiLogout, getSessao, type SessaoUsuario } from './services/auth';
 import { listarProfessores, criarProfessor, atualizarProfessor, removerProfessor } from './services/professores';
 import { getResumoGeral, getResumoProfessor, type ResumoGeral, type ResumoProfessor } from './services/dashboard';
+import { listarCursos, criarCurso } from './services/cursos';
+import { listarDisciplinas, criarDisciplina, atualizarDisciplina, removerDisciplina } from './services/disciplinas';
+import { listarTurmas, criarTurma, atualizarTurma, removerTurma } from './services/turmas';
+import { listarCoordenadores, criarCoordenador, atualizarCoordenador, removerCoordenador } from './services/coordenadores';
+import { listarSemestres, criarSemestre, atualizarSemestre, removerSemestre } from './services/semestres';
+import { listarOfertas, criarOferta, removerOferta } from './services/ofertas';
+import { listarAlocacoes, gerarGrade, type AlocacaoUI } from './services/alocacoes';
+import { emitirRelatorio, type RelatorioResponse } from './services/relatorios';
+import { consultarDisponibilidade, salvarDisponibilidade } from './services/disponibilidade';
+import { obterSituacaoProfessor, salvarSituacaoProfessor, type SituacaoProfessor } from './services/situacaoProfessor';
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-// ── UI Primitives ──────────────────────────────────────────────────────────────
 
 const Button = React.forwardRef<
   HTMLButtonElement,
@@ -173,66 +182,20 @@ const TableCell = React.forwardRef<HTMLTableCellElement, React.TdHTMLAttributes<
 );
 TableCell.displayName = 'TableCell';
 
-// ── Domain Types ───────────────────────────────────────────────────────────────
 
 type RegimeTrabalho = 'DE' | '20H' | '40H';
 type StatusEtapa = 'OFERTAS' | 'RESTRICOES' | 'SIMULACAO' | 'CONCLUIDO';
 type Turno = 'Manhã' | 'Tarde' | 'Noite';
 
-type Curso = { id: number; sigla: string; nome: string };
+type Curso = { id: number; sigla: string; nome: string; nivel?: string };
 type Turma = { id: number; codigo: string; nome: string; turno: Turno; cursoId: number };
 type Disciplina = { id: number; nome: string; sigla: string; cargaHorariaCreditos: number; cursoId: number };
 type Professor = { id: number; nome: string; email: string; regimeTrabalho: RegimeTrabalho; areaAtuacao: string };
-type Coordenador = { id: number; nome: string; email: string; senha: string; departamento: string; ativo: boolean };
+type Coordenador = { id: number; nome: string; email: string; senha?: string; cursoId: number; ativo: boolean };
 type Semestre = { id: number; nome: string; dataInicio: string; dataTermino: string; statusEtapa: StatusEtapa };
-type Oferta = { turmaId: number; disciplinaId: number };
+type Oferta = { id?: number; turmaId: number; disciplinaId: number; professorId?: number | null; cargaHoraria?: number };
 type Restricao = { professorId: number; horariosBloqueados: string[]; limiteCargaHoraria?: number };
 
-// ── Mock Data ──────────────────────────────────────────────────────────────────
-
-const MOCK_CURSOS: Curso[] = [
-  { id: 1, sigla: 'ADS', nome: 'Análise e Desenvolvimento de Sistemas' },
-  { id: 2, sigla: 'LETRAS', nome: 'Letras' },
-  { id: 3, sigla: 'AGRO', nome: 'Agropecuária' },
-  { id: 4, sigla: 'REDES', nome: 'Redes de Computadores' },
-  { id: 5, sigla: 'INFO', nome: 'Informática para Internet' },
-  { id: 6, sigla: 'TELE', nome: 'Telemática' },
-];
-
-const MOCK_TURMAS: Turma[] = [
-  { id: 1, codigo: 'ADS_2024.1_MAT', nome: 'ADS 2024.1 (Manhã)', turno: 'Manhã', cursoId: 1 },
-  { id: 2, codigo: 'ADS_2024.1_NOT', nome: 'ADS 2024.1 (Noite)', turno: 'Noite', cursoId: 1 },
-  { id: 3, codigo: 'REDES_2024.1_TAR', nome: 'Redes 2024.1 (Tarde)', turno: 'Tarde', cursoId: 4 },
-  { id: 4, codigo: 'INFO_2024.1_NOT', nome: 'Info.Internet 2024.1 (Noite)', turno: 'Noite', cursoId: 5 },
-];
-
-const MOCK_PROFESSORES: Professor[] = [
-  { id: 1, nome: 'Ana Silva', email: 'ana.silva@ifce.edu.br', regimeTrabalho: 'DE', areaAtuacao: 'Computação' },
-  { id: 2, nome: 'Carlos Santos', email: 'carlos.santos@ifce.edu.br', regimeTrabalho: '40H', areaAtuacao: 'Matemática' },
-  { id: 3, nome: 'Beatriz Costa', email: 'beatriz.costa@ifce.edu.br', regimeTrabalho: 'DE', areaAtuacao: 'Redes' },
-  { id: 4, nome: 'João Oliveira', email: 'joao.oliveira@ifce.edu.br', regimeTrabalho: '20H', areaAtuacao: 'Computação' },
-];
-
-const MOCK_DISCIPLINAS: Disciplina[] = [
-  { id: 1, nome: 'Algoritmos e Estrutura de Dados', sigla: 'AED', cargaHorariaCreditos: 4, cursoId: 1 },
-  { id: 2, nome: 'Cálculo I', sigla: 'CAL1', cargaHorariaCreditos: 4, cursoId: 1 },
-  { id: 3, nome: 'Redes de Computadores', sigla: 'RC', cargaHorariaCreditos: 3, cursoId: 4 },
-  { id: 4, nome: 'Engenharia de Software', sigla: 'ES', cargaHorariaCreditos: 3, cursoId: 1 },
-  { id: 5, nome: 'Infraestrutura de Redes', sigla: 'IR', cargaHorariaCreditos: 4, cursoId: 4 },
-];
-
-const MOCK_COORDENADORES_INICIAL: Coordenador[] = [
-  { id: 1, nome: 'Saulo Anderson', email: 'saulo.anderson@ifce.edu.br', senha: '123456', departamento: 'Análise e Desenvolvimento de Sistemas', ativo: true },
-  { id: 2, nome: 'Marcos Freitas', email: 'marcos.freitas@ifce.edu.br', senha: 'coord01', departamento: 'Redes de Computadores', ativo: true },
-  { id: 3, nome: 'Carla Mendes', email: 'carla.mendes@ifce.edu.br', senha: 'coord02', departamento: 'Agropecuária', ativo: false },
-];
-
-const MOCK_SEMESTRES: Semestre[] = [
-  { id: 1, nome: '2023.2', dataInicio: '2023-08-01', dataTermino: '2023-12-15', statusEtapa: 'CONCLUIDO' },
-  { id: 2, nome: '2024.1', dataInicio: '2024-02-01', dataTermino: '2024-06-30', statusEtapa: 'SIMULACAO' },
-];
-
-// ── Time Slot Constants ────────────────────────────────────────────────────────
 
 const DAYS = ['SEG', 'TER', 'QUA', 'QUI', 'SEX', 'SAB'] as const;
 const DAY_LABELS: Record<string, string> = { SEG: 'Seg', TER: 'Ter', QUA: 'Qua', QUI: 'Qui', SEX: 'Sex', SAB: 'Sáb' };
@@ -249,7 +212,6 @@ const SLOT_TIMES: Record<string, string> = {
   N1: '18:20', N2: '19:10', N3: '20:10', N4: '21:00', N5: '21:50',
 };
 
-// ── Helpers ────────────────────────────────────────────────────────────────────
 
 const REGIME_LABELS: Record<RegimeTrabalho, string> = {
   DE: 'Dedicação Exclusiva',
@@ -287,7 +249,6 @@ function fmtDate(iso: string) {
   return new Date(iso + 'T12:00:00').toLocaleDateString('pt-BR');
 }
 
-// ── TimeSlotGrid Component ─────────────────────────────────────────────────────
 
 type TimeSlotGridProps = {
   blocked: string[];
@@ -358,9 +319,8 @@ function TimeSlotGrid({ blocked, onChange }: TimeSlotGridProps) {
   );
 }
 
-// ── Main App ───────────────────────────────────────────────────────────────────
 
-type View = 'dashboard' | 'wizard' | 'professores' | 'disciplinas' | 'semestres' | 'turmas' | 'coordenadores' | 'perfil' | 'minha-agenda' | 'minha-disponibilidade' | 'disciplinas-preferidas';
+type View = 'dashboard' | 'wizard' | 'professores' | 'disciplinas' | 'semestres' | 'turmas' | 'coordenadores' | 'cursos' | 'alocacoes' | 'relatorios' | 'perfil' | 'minha-agenda' | 'minha-disponibilidade' | 'minha-situacao';
 
 type WizardData = {
   nome: string;
@@ -370,7 +330,6 @@ type WizardData = {
   restricoes: Record<number, Restricao>;
 };
 
-// ── DatePicker ─────────────────────────────────────────────────────────────────
 
 const MONTH_NAMES = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
 const TODAY_ISO = new Date().toISOString().slice(0, 10);
@@ -487,19 +446,10 @@ function DatePicker({
   );
 }
 
-// ── MOCK Users ─────────────────────────────────────────────────────────────────
-
-const MOCK_USERS = [
-  { email: 'saulo.anderson@ifce.edu.br', password: '123456',  name: 'Saulo Anderson', role: 'Coordenador',   initials: 'SA' },
-  { email: 'admin@ifce.edu.br',          password: 'admin',   name: 'Admin',          role: 'Administrador', initials: 'AD' },
-  { email: 'ana.silva@ifce.edu.br',      password: 'prof123', name: 'Ana Silva',      role: 'Professor',     initials: 'AS' },
-];
-
-// ── Login Screen ───────────────────────────────────────────────────────────────
 
 function LoginScreen({ onLogin }: { onLogin: (user: SessaoUsuario) => void }) {
-  const [email, setEmail] = useState('saulo.anderson@ifce.edu.br');
-  const [password, setPassword] = useState('123456');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [showPass, setShowPass] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -659,28 +609,12 @@ function LoginScreen({ onLogin }: { onLogin: (user: SessaoUsuario) => void }) {
             </motion.button>
           </form>
 
-          <div className="mt-6 p-3 bg-gray-50 border border-gray-100 rounded-xl">
-            <p className="text-[11px] text-gray-500 mb-1.5 font-medium">Credenciais de demonstração:</p>
-            <div className="space-y-1">
-              {MOCK_USERS.map(u => (
-                <button
-                  key={u.email}
-                  type="button"
-                  onClick={() => { setEmail(u.email); setPassword(u.password); setError(''); }}
-                  className="w-full text-left text-[11px] text-gray-500 hover:text-[#2D6A4F] transition-colors font-mono"
-                >
-                  {u.email} / {u.password}
-                </button>
-              ))}
-            </div>
-          </div>
         </div>
       </motion.div>
     </div>
   );
 }
 
-// ── Root App ───────────────────────────────────────────────────────────────────
 
 export default function App() {
   const sessaoSalva = getSessao();
@@ -709,7 +643,6 @@ export default function App() {
   return <AppShell currentUser={currentUser!} onLogout={handleLogout} />;
 }
 
-// ── AppShell ───────────────────────────────────────────────────────────────────
 
 function AppShell({ currentUser, onLogout }: { currentUser: SessaoUsuario; onLogout: () => void }) {
   const isAdmin = currentUser.role === 'Administrador';
@@ -719,7 +652,6 @@ function AppShell({ currentUser, onLogout }: { currentUser: SessaoUsuario; onLog
   );
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
-  // ── Perfil ────────────────────────────────────────────────────────────────
   const [profileName, setProfileName] = useState(currentUser.name);
   const [profilePhoto, setProfilePhoto] = useState<string | null>(null);
   const profileInputRef = useRef<HTMLInputElement>(null);
@@ -730,18 +662,16 @@ function AppShell({ currentUser, onLogout }: { currentUser: SessaoUsuario; onLog
     setTimeout(() => setProfileSaved(false), 2000);
   };
 
-  // ── Entidades com CRUD funcional ──────────────────────────────────────────
-  const [professores, setProfessores] = useState<Professor[]>([...MOCK_PROFESSORES]);
+  const [professores, setProfessores] = useState<Professor[]>([]);
 
-  // Carrega os professores reais do backend ao montar (cai para o mock se o
-  // backend estiver indisponível, mantendo a demo navegável).
+  const [apiError, setApiError] = useState('');
+
   useEffect(() => {
     listarProfessores()
       .then(setProfessores)
-      .catch(() => { /* backend offline: mantém os dados de exemplo */ });
+      .catch((err) => setApiError(err?.message || 'Erro ao carregar professores.'));
   }, []);
 
-  // Dados agregados do dashboard, puxados do banco conforme o perfil.
   const [resumo, setResumo] = useState<ResumoGeral | null>(null);
   const [resumoProf, setResumoProf] = useState<ResumoProfessor | null>(null);
   useEffect(() => {
@@ -751,26 +681,37 @@ function AppShell({ currentUser, onLogout }: { currentUser: SessaoUsuario; onLog
       getResumoGeral().then(setResumo).catch(() => {});
     }
   }, [isProf]);
-  const [disciplinas, setDisciplinas] = useState<Disciplina[]>([...MOCK_DISCIPLINAS]);
-  const [turmas, setTurmas] = useState<Turma[]>([...MOCK_TURMAS]);
+  const [disciplinas, setDisciplinas] = useState<Disciplina[]>([]);
+  const [turmas, setTurmas] = useState<Turma[]>([]);
+  const [cursos, setCursos] = useState<Curso[]>([]);
+  const [semestres, setSemestres] = useState<Semestre[]>([]);
 
-  // ── Search state per view ─────────────────────────────────────────────────
+  useEffect(() => {
+    listarCursos().then(setCursos).catch((err) => setApiError(err?.message || 'Erro ao carregar cursos.'));
+    listarDisciplinas().then(setDisciplinas).catch((err) => setApiError(err?.message || 'Erro ao carregar disciplinas.'));
+    listarTurmas().then(setTurmas).catch((err) => setApiError(err?.message || 'Erro ao carregar turmas.'));
+    listarSemestres().then(setSemestres).catch((err) => setApiError(err?.message || 'Erro ao carregar semestres.'));
+  }, []);
+
   const [profSearch, setProfSearch] = useState('');
   const [discSearch, setDiscSearch] = useState('');
   const [turmaSearch, setTurmaSearch] = useState('');
   const [coordSearch, setCoordSearch] = useState('');
 
-  // ── Professor CRUD ────────────────────────────────────────────────────────
-  type ProfForm = Omit<Professor, 'id'>;
-  const emptyProfForm: ProfForm = { nome: '', email: '', regimeTrabalho: 'DE', areaAtuacao: '' };
+  type ProfForm = Omit<Professor, 'id'> & { senha: string };
+  const emptyProfForm: ProfForm = { nome: '', email: '', regimeTrabalho: 'DE', areaAtuacao: '', senha: '' };
   const [profModal, setProfModal] = useState<{ open: boolean; editId: number | null }>({ open: false, editId: null });
   const [profForm, setProfForm] = useState<ProfForm>(emptyProfForm);
   const [profFormError, setProfFormError] = useState('');
+  const [profShowSenha, setProfShowSenha] = useState(false);
 
-  const openProfAdd = () => { setProfForm(emptyProfForm); setProfFormError(''); setProfModal({ open: true, editId: null }); };
-  const openProfEdit = (p: Professor) => { setProfForm({ nome: p.nome, email: p.email, regimeTrabalho: p.regimeTrabalho, areaAtuacao: p.areaAtuacao }); setProfFormError(''); setProfModal({ open: true, editId: p.id }); };
+  const openProfAdd = () => { setProfForm(emptyProfForm); setProfFormError(''); setProfShowSenha(false); setProfModal({ open: true, editId: null }); };
+  const openProfEdit = (p: Professor) => { setProfForm({ nome: p.nome, email: p.email, regimeTrabalho: p.regimeTrabalho, areaAtuacao: p.areaAtuacao, senha: '' }); setProfFormError(''); setProfShowSenha(false); setProfModal({ open: true, editId: p.id }); };
   const saveProf = async () => {
     if (!profForm.nome.trim() || !profForm.email.trim()) { setProfFormError('Nome e e-mail são obrigatórios.'); return; }
+    const novo = profModal.editId === null;
+    if (novo && profForm.senha.trim().length < 8) { setProfFormError('A senha de acesso deve ter no mínimo 8 caracteres.'); return; }
+    if (!novo && profForm.senha.trim() && profForm.senha.trim().length < 8) { setProfFormError('A nova senha deve ter no mínimo 8 caracteres.'); return; }
     try {
       if (profModal.editId !== null) {
         const atualizado = await atualizarProfessor(profModal.editId, profForm);
@@ -793,81 +734,151 @@ function AppShell({ currentUser, onLogout }: { currentUser: SessaoUsuario; onLog
     }
   };
 
-  // ── Disciplina CRUD ───────────────────────────────────────────────────────
   type DiscForm = Omit<Disciplina, 'id'>;
   const emptyDiscForm: DiscForm = { nome: '', sigla: '', cargaHorariaCreditos: 3, cursoId: 1 };
   const [discModal, setDiscModal] = useState<{ open: boolean; editId: number | null }>({ open: false, editId: null });
   const [discForm, setDiscForm] = useState<DiscForm>(emptyDiscForm);
   const [discFormError, setDiscFormError] = useState('');
 
-  const openDiscAdd = () => { setDiscForm(emptyDiscForm); setDiscFormError(''); setDiscModal({ open: true, editId: null }); };
+  const openDiscAdd = () => { setDiscForm({ ...emptyDiscForm, cursoId: cursos[0]?.id ?? 1 }); setDiscFormError(''); setDiscModal({ open: true, editId: null }); };
   const openDiscEdit = (d: Disciplina) => { setDiscForm({ nome: d.nome, sigla: d.sigla, cargaHorariaCreditos: d.cargaHorariaCreditos, cursoId: d.cursoId }); setDiscFormError(''); setDiscModal({ open: true, editId: d.id }); };
-  const saveDisc = () => {
+  const saveDisc = async () => {
     if (!discForm.nome.trim() || !discForm.sigla.trim()) { setDiscFormError('Nome e sigla são obrigatórios.'); return; }
-    if (discModal.editId !== null) {
-      setDisciplinas(ds => ds.map(d => d.id === discModal.editId ? { ...d, ...discForm } : d));
-    } else {
-      setDisciplinas(ds => [...ds, { id: Math.max(0, ...ds.map(d => d.id)) + 1, ...discForm }]);
+    try {
+      if (discModal.editId !== null) {
+        const atualizada = await atualizarDisciplina(discModal.editId, discForm);
+        setDisciplinas(ds => ds.map(d => d.id === discModal.editId ? atualizada : d));
+      } else {
+        const nova = await criarDisciplina(discForm);
+        setDisciplinas(ds => [...ds, nova]);
+      }
+      setDiscModal({ open: false, editId: null });
+    } catch (err: any) {
+      setDiscFormError(err?.message || 'Erro ao salvar disciplina.');
     }
-    setDiscModal({ open: false, editId: null });
   };
-  const deleteDisc = (id: number) => setDisciplinas(ds => ds.filter(d => d.id !== id));
+  const deleteDisc = async (id: number) => {
+    try {
+      await removerDisciplina(id);
+      setDisciplinas(ds => ds.filter(d => d.id !== id));
+    } catch (err) {
+      console.error('Falha ao remover disciplina:', err);
+    }
+  };
 
-  // ── Turma CRUD ────────────────────────────────────────────────────────────
   type TurmaForm = Omit<Turma, 'id'>;
   const emptyTurmaForm: TurmaForm = { codigo: '', nome: '', turno: 'Manhã', cursoId: 1 };
   const [turmaModal, setTurmaModal] = useState<{ open: boolean; editId: number | null }>({ open: false, editId: null });
   const [turmaForm, setTurmaForm] = useState<TurmaForm>(emptyTurmaForm);
   const [turmaFormError, setTurmaFormError] = useState('');
 
-  const openTurmaAdd = () => { setTurmaForm(emptyTurmaForm); setTurmaFormError(''); setTurmaModal({ open: true, editId: null }); };
+  const openTurmaAdd = () => { setTurmaForm({ ...emptyTurmaForm, cursoId: cursos[0]?.id ?? 1 }); setTurmaFormError(''); setTurmaModal({ open: true, editId: null }); };
   const openTurmaEdit = (t: Turma) => { setTurmaForm({ codigo: t.codigo, nome: t.nome, turno: t.turno, cursoId: t.cursoId }); setTurmaFormError(''); setTurmaModal({ open: true, editId: t.id }); };
-  const saveTurma = () => {
+  const saveTurma = async () => {
     if (!turmaForm.nome.trim() || !turmaForm.codigo.trim()) { setTurmaFormError('Código e nome são obrigatórios.'); return; }
-    if (turmaModal.editId !== null) {
-      setTurmas(ts => ts.map(t => t.id === turmaModal.editId ? { ...t, ...turmaForm } : t));
-    } else {
-      setTurmas(ts => [...ts, { id: Math.max(0, ...ts.map(t => t.id)) + 1, ...turmaForm }]);
+    try {
+      if (turmaModal.editId !== null) {
+        const atualizada = await atualizarTurma(turmaModal.editId, turmaForm);
+        setTurmas(ts => ts.map(t => t.id === turmaModal.editId ? atualizada : t));
+      } else {
+        const nova = await criarTurma(turmaForm);
+        setTurmas(ts => [...ts, nova]);
+      }
+      setTurmaModal({ open: false, editId: null });
+    } catch (err: any) {
+      setTurmaFormError(err?.message || 'Erro ao salvar turma.');
     }
-    setTurmaModal({ open: false, editId: null });
   };
-  const deleteTurma = (id: number) => setTurmas(ts => ts.filter(t => t.id !== id));
+  const deleteTurma = async (id: number) => {
+    try {
+      await removerTurma(id);
+      setTurmas(ts => ts.filter(t => t.id !== id));
+    } catch (err) {
+      console.error('Falha ao remover turma:', err);
+    }
+  };
 
-  // ── Coordenadores CRUD (admin only) ───────────────────────────────────────
-  const [coordenadores, setCoordenadores] = useState<Coordenador[]>(MOCK_COORDENADORES_INICIAL);
+  type CoordForm = { nome: string; email: string; senha: string; cursoId: number };
+  const [coordenadores, setCoordenadores] = useState<Coordenador[]>([]);
   const [coordModal, setCoordModal] = useState<{ open: boolean; editId: number | null }>({ open: false, editId: null });
-  const [coordForm, setCoordForm] = useState<Omit<Coordenador, 'id'>>({ nome: '', email: '', senha: '', departamento: '', ativo: true });
+  const [coordForm, setCoordForm] = useState<CoordForm>({ nome: '', email: '', senha: '', cursoId: 1 });
   const [coordFormError, setCoordFormError] = useState('');
   const [coordShowSenha, setCoordShowSenha] = useState(false);
 
-  const openCoordAdd = () => { setCoordForm({ nome: '', email: '', senha: '', departamento: '', ativo: true }); setCoordFormError(''); setCoordShowSenha(false); setCoordModal({ open: true, editId: null }); };
-  const openCoordEdit = (c: Coordenador) => { setCoordForm({ nome: c.nome, email: c.email, senha: c.senha, departamento: c.departamento, ativo: c.ativo }); setCoordFormError(''); setCoordShowSenha(false); setCoordModal({ open: true, editId: c.id }); };
-  const saveCoord = () => {
-    if (!coordForm.nome.trim() || !coordForm.email.trim() || !coordForm.senha.trim()) { setCoordFormError('Nome, e-mail e senha são obrigatórios.'); return; }
-    if (coordModal.editId !== null) {
-      setCoordenadores(cs => cs.map(c => c.id === coordModal.editId ? { ...c, ...coordForm } : c));
-    } else {
-      const nextId = Math.max(0, ...coordenadores.map(c => c.id)) + 1;
-      setCoordenadores(cs => [...cs, { id: nextId, ...coordForm }]);
-    }
-    setCoordModal({ open: false, editId: null });
-  };
-  const deleteCoord = (id: number) => setCoordenadores(cs => cs.filter(c => c.id !== id));
-  const toggleCoordAtivo = (id: number) => setCoordenadores(cs => cs.map(c => c.id === id ? { ...c, ativo: !c.ativo } : c));
+  useEffect(() => {
+    listarCoordenadores().then(setCoordenadores).catch((err) => setApiError(err?.message || 'Erro ao carregar coordenadores.'));
+  }, []);
 
-  // ── Wizard state ──────────────────────────────────────────────────────────
+  const openCoordAdd = () => { setCoordForm({ nome: '', email: '', senha: '', cursoId: cursos[0]?.id ?? 1 }); setCoordFormError(''); setCoordShowSenha(false); setCoordModal({ open: true, editId: null }); };
+  const openCoordEdit = (c: Coordenador) => { setCoordForm({ nome: c.nome, email: c.email, senha: '', cursoId: c.cursoId }); setCoordFormError(''); setCoordShowSenha(false); setCoordModal({ open: true, editId: c.id }); };
+  const saveCoord = async () => {
+    if (!coordForm.nome.trim() || !coordForm.email.trim()) { setCoordFormError('Nome e e-mail são obrigatórios.'); return; }
+    const novo = coordModal.editId === null;
+    if (novo && coordForm.senha.trim().length < 8) { setCoordFormError('A senha deve ter no mínimo 8 caracteres.'); return; }
+    if (!novo && coordForm.senha.trim() && coordForm.senha.trim().length < 8) { setCoordFormError('A nova senha deve ter no mínimo 8 caracteres.'); return; }
+    try {
+      if (coordModal.editId !== null) {
+        const atualizado = await atualizarCoordenador(coordModal.editId, coordForm);
+        setCoordenadores(cs => cs.map(c => c.id === coordModal.editId ? { ...atualizado, senha: '' } : c));
+      } else {
+        const criado = await criarCoordenador(coordForm);
+        setCoordenadores(cs => [...cs, { ...criado, senha: '' }]);
+      }
+      setCoordModal({ open: false, editId: null });
+    } catch (err: any) {
+      setCoordFormError(err?.message || 'Erro ao salvar coordenador.');
+    }
+  };
+  const deleteCoord = async (id: number) => {
+    try {
+      await removerCoordenador(id);
+      setCoordenadores(cs => cs.filter(c => c.id !== id));
+    } catch (err) {
+      console.error('Falha ao remover coordenador:', err);
+    }
+  };
+
+  type SemForm = Omit<Semestre, 'id'>;
+  const emptySemForm: SemForm = { nome: '', dataInicio: '', dataTermino: '', statusEtapa: 'OFERTAS' };
+  const [semModal, setSemModal] = useState<{ open: boolean; editId: number | null }>({ open: false, editId: null });
+  const [semForm, setSemForm] = useState<SemForm>(emptySemForm);
+  const [semFormError, setSemFormError] = useState('');
+
+  const openSemAdd = () => { setSemForm(emptySemForm); setSemFormError(''); setSemModal({ open: true, editId: null }); };
+  const openSemEdit = (s: Semestre) => { setSemForm({ nome: s.nome, dataInicio: s.dataInicio, dataTermino: s.dataTermino, statusEtapa: s.statusEtapa }); setSemFormError(''); setSemModal({ open: true, editId: s.id }); };
+  const saveSem = async () => {
+    if (!semForm.nome.trim() || !semForm.dataInicio || !semForm.dataTermino) { setSemFormError('Nome e datas são obrigatórios.'); return; }
+    if (semForm.dataTermino <= semForm.dataInicio) { setSemFormError('A data de término deve ser posterior à de início.'); return; }
+    try {
+      if (semModal.editId !== null) {
+        const atualizado = await atualizarSemestre(semModal.editId, semForm);
+        setSemestres(ss => ss.map(s => s.id === semModal.editId ? atualizado : s));
+      } else {
+        const novo = await criarSemestre(semForm);
+        setSemestres(ss => [...ss, novo]);
+      }
+      setSemModal({ open: false, editId: null });
+    } catch (err: any) {
+      setSemFormError(err?.message || 'Erro ao salvar semestre.');
+    }
+  };
+  const deleteSem = async (id: number) => {
+    try {
+      await removerSemestre(id);
+      setSemestres(ss => ss.filter(s => s.id !== id));
+    } catch (err) {
+      console.error('Falha ao remover semestre:', err);
+    }
+  };
+
   const [wizardStep, setWizardStep] = useState(1);
   const [simulationRunning, setSimulationRunning] = useState(false);
   const [simulationComplete, setSimulationComplete] = useState(false);
   const [wizardData, setWizardData] = useState<WizardData>({
-    nome: '2024.2',
-    dataInicio: '2024-08-01',
-    dataTermino: '2024-12-15',
-    ofertas: [
-      { turmaId: 1, disciplinaId: 1 },
-      { turmaId: 1, disciplinaId: 2 },
-      { turmaId: 3, disciplinaId: 3 },
-    ],
+    nome: '',
+    dataInicio: '',
+    dataTermino: '',
+    ofertas: [],
     restricoes: {},
   });
 
@@ -875,9 +886,21 @@ function AppShell({ currentUser, onLogout }: { currentUser: SessaoUsuario; onLog
   const [newOfertaDisc, setNewOfertaDisc] = useState<number>(0);
   const [expandedProf, setExpandedProf] = useState<number | null>(null);
 
-  const runSimulation = () => {
+  const runSimulation = async () => {
+    if (!selectedSemestreId) return;
     setSimulationRunning(true);
-    setTimeout(() => { setSimulationRunning(false); setSimulationComplete(true); }, 2500);
+    setAlocacaoError('');
+    try {
+      await gerarGrade(selectedSemestreId);
+      const dados = await listarAlocacoes();
+      setAlocacoes(dados);
+      setSimulationComplete(true);
+    } catch (err: any) {
+      setAlocacaoError(err?.message || 'Erro ao gerar alocação.');
+      setSimulationComplete(false);
+    } finally {
+      setSimulationRunning(false);
+    }
   };
 
   const finishWizard = () => {
@@ -909,14 +932,17 @@ function AppShell({ currentUser, onLogout }: { currentUser: SessaoUsuario; onLog
     }));
   };
 
-  // ── Navigation ────────────────────────────────────────────────────────────
 
   const adminNavItems: { view: View; label: string; icon: React.ReactNode }[] = [
     { view: 'dashboard',     label: 'Dashboard',     icon: <LayoutDashboard className="mr-2 h-4 w-4" /> },
+    { view: 'cursos',        label: 'Cursos',        icon: <GraduationCap   className="mr-2 h-4 w-4" /> },
+    { view: 'semestres',     label: 'Semestres',     icon: <Calendar        className="mr-2 h-4 w-4" /> },
     { view: 'coordenadores', label: 'Coordenadores', icon: <ShieldAlert     className="mr-2 h-4 w-4" /> },
     { view: 'professores',   label: 'Professores',   icon: <Users           className="mr-2 h-4 w-4" /> },
     { view: 'disciplinas',   label: 'Disciplinas',   icon: <BookOpen        className="mr-2 h-4 w-4" /> },
     { view: 'turmas',        label: 'Turmas',        icon: <GraduationCap   className="mr-2 h-4 w-4" /> },
+    { view: 'alocacoes',     label: 'Alocações',     icon: <Play            className="mr-2 h-4 w-4" /> },
+    { view: 'relatorios',    label: 'Relatórios',    icon: <CalendarCheck   className="mr-2 h-4 w-4" /> },
   ];
 
   const coordNavItems: { view: View; label: string; icon: React.ReactNode }[] = [
@@ -925,12 +951,14 @@ function AppShell({ currentUser, onLogout }: { currentUser: SessaoUsuario; onLog
     { view: 'professores', label: 'Professores', icon: <Users           className="mr-2 h-4 w-4" /> },
     { view: 'disciplinas', label: 'Disciplinas', icon: <BookOpen        className="mr-2 h-4 w-4" /> },
     { view: 'turmas',      label: 'Turmas',      icon: <GraduationCap   className="mr-2 h-4 w-4" /> },
+    { view: 'alocacoes',   label: 'Alocações',   icon: <Play            className="mr-2 h-4 w-4" /> },
+    { view: 'relatorios',  label: 'Relatórios',  icon: <CalendarCheck   className="mr-2 h-4 w-4" /> },
   ];
 
   const profNavItems: { view: View; label: string; icon: React.ReactNode }[] = [
     { view: 'minha-agenda',           label: 'Minha Agenda',           icon: <Calendar      className="mr-2 h-4 w-4" /> },
     { view: 'minha-disponibilidade',  label: 'Minha Disponibilidade',  icon: <CalendarCheck className="mr-2 h-4 w-4" /> },
-    { view: 'disciplinas-preferidas', label: 'Disciplinas Preferidas', icon: <Star          className="mr-2 h-4 w-4" /> },
+    { view: 'minha-situacao',         label: 'Minha Situação',         icon: <AlertCircle   className="mr-2 h-4 w-4" /> },
     { view: 'perfil',                 label: 'Meu Perfil',             icon: <Users         className="mr-2 h-4 w-4" /> },
   ];
 
@@ -944,35 +972,48 @@ function AppShell({ currentUser, onLogout }: { currentUser: SessaoUsuario; onLog
     semestres:                'Semestres Letivos',
     turmas:                   'Turmas',
     coordenadores:            'Coordenadores',
+    cursos:                   'Cursos',
+    alocacoes:                'Alocações',
+    relatorios:               'Relatórios',
     perfil:                   'Meu Perfil',
     'minha-agenda':           'Minha Agenda',
     'minha-disponibilidade':  'Minha Disponibilidade',
-    'disciplinas-preferidas': 'Disciplinas Preferidas',
+    'minha-situacao':         'Minha Situação',
   };
 
-  // ── Professor mock agenda data ────────────────────────────────────────────
-  type AgendaSlot = { day: string; slot: string; disciplina: string; turma: string; colorClass: string };
-  const profAgenda: AgendaSlot[] = [
-    { day: 'SEG', slot: 'M1', disciplina: 'AED', turma: 'ADS 2024.1 (Manhã)', colorClass: 'bg-blue-100 border-blue-300 text-blue-800' },
-    { day: 'SEG', slot: 'M2', disciplina: 'AED', turma: 'ADS 2024.1 (Manhã)', colorClass: 'bg-blue-100 border-blue-300 text-blue-800' },
-    { day: 'TER', slot: 'M1', disciplina: 'AED', turma: 'ADS 2024.1 (Manhã)', colorClass: 'bg-blue-100 border-blue-300 text-blue-800' },
-    { day: 'QUA', slot: 'T1', disciplina: 'ES', turma: 'ADS 2024.1 (Tarde)', colorClass: 'bg-emerald-100 border-emerald-300 text-emerald-800' },
-    { day: 'QUA', slot: 'T2', disciplina: 'ES', turma: 'ADS 2024.1 (Tarde)', colorClass: 'bg-emerald-100 border-emerald-300 text-emerald-800' },
-    { day: 'SEX', slot: 'N1', disciplina: 'AED', turma: 'ADS 2024.1 (Noite)', colorClass: 'bg-blue-100 border-blue-300 text-blue-800' },
-  ];
+    const [ofertas, setOfertas] = useState<Oferta[]>([]);
+  const [alocacoes, setAlocacoes] = useState<AlocacaoUI[]>([]);
+  const [selectedSemestreId, setSelectedSemestreId] = useState<number>(0);
+  const [alocacaoError, setAlocacaoError] = useState('');
+
+  useEffect(() => {
+    listarOfertas()
+      .then(setOfertas)
+      .catch((err) => setApiError(err?.message || 'Erro ao carregar ofertas.'));
+    listarAlocacoes()
+      .then(setAlocacoes)
+      .catch(() => setAlocacoes([]));
+  }, []);
+
+  useEffect(() => {
+    if (!selectedSemestreId && semestres.length) setSelectedSemestreId(semestres[0].id);
+  }, [semestres, selectedSemestreId]);
 
   const profLogado = professores.find(p => p.email === currentUser.email);
-  const maxHoras = profLogado ? REGIME_MAX_HOURS[profLogado.regimeTrabalho] : 20;
-  const horasAlocadas = profAgenda.length;
+  const alocacoesProfessor = profLogado ? alocacoes.filter(a => a.professorId === profLogado.id) : [];
+  const maxHoras = profLogado ? REGIME_MAX_HOURS[profLogado.regimeTrabalho] : (resumoProf?.carga_maxima ?? 0);
+  const horasAlocadas = alocacoesProfessor.length;
 
-  // ── Professor disponibilidade state ───────────────────────────────────────
-  const [disponibilidade, setDisponibilidade] = useState<Set<string>>(new Set([
-    'SEG_M1', 'SEG_M2', 'SEG_M3', 'SEG_M4',
-    'TER_M1', 'TER_M2',
-    'QUA_T1', 'QUA_T2', 'QUA_T3',
-    'SEX_M1', 'SEX_M2',
-  ]));
+  const [disponibilidade, setDisponibilidade] = useState<Set<string>>(new Set());
   const [dispSaved, setDispSaved] = useState(false);
+  const [dispError, setDispError] = useState('');
+
+  useEffect(() => {
+    if (!profLogado?.id || !selectedSemestreId) return;
+    consultarDisponibilidade(profLogado.id, selectedSemestreId)
+      .then(dados => setDisponibilidade(new Set(dados.horarios_bloqueados || [])))
+      .catch(() => setDisponibilidade(new Set()));
+  }, [profLogado?.id, selectedSemestreId]);
 
   const toggleDisponibilidade = (key: string) => {
     setDisponibilidade(prev => {
@@ -982,40 +1023,95 @@ function AppShell({ currentUser, onLogout }: { currentUser: SessaoUsuario; onLog
     });
   };
 
-  const handleSaveDisp = () => {
-    setDispSaved(true);
-    setTimeout(() => setDispSaved(false), 2500);
+  const handleSaveDisp = async () => {
+    if (!profLogado?.id || !selectedSemestreId) {
+      setDispError('Professor ou semestre não identificado.');
+      return;
+    }
+    try {
+      await salvarDisponibilidade(profLogado.id, {
+        semestre_id: selectedSemestreId,
+        horarios_bloqueados: Array.from(disponibilidade),
+        limite_carga_horaria: maxHoras || 1,
+      });
+      setDispError('');
+      setDispSaved(true);
+      setTimeout(() => setDispSaved(false), 2500);
+    } catch (err: any) {
+      setDispError(err?.message || 'Erro ao salvar disponibilidade.');
+    }
   };
 
-  // ── Disciplinas preferidas state ──────────────────────────────────────────
-  const DISC_PREF_LIST = [
-    { sigla: 'AED',  nome: 'Algoritmos e Estruturas de Dados',  curso: 'ADS', cargaHoraria: 80 },
-    { sigla: 'ES',   nome: 'Engenharia de Software',             curso: 'ADS', cargaHoraria: 80 },
-    { sigla: 'BD',   nome: 'Banco de Dados',                     curso: 'ADS', cargaHoraria: 80 },
-    { sigla: 'POO',  nome: 'Programação Orientada a Objetos',    curso: 'ADS', cargaHoraria: 80 },
-    { sigla: 'RC',   nome: 'Redes de Computadores',              curso: 'ADS', cargaHoraria: 80 },
-    { sigla: 'SO',   nome: 'Sistemas Operacionais',              curso: 'ADS', cargaHoraria: 80 },
-    { sigla: 'WEB',  nome: 'Desenvolvimento Web',                curso: 'ADS', cargaHoraria: 80 },
-    { sigla: 'IHC',  nome: 'Interface Humano-Computador',        curso: 'ADS', cargaHoraria: 40 },
-  ];
+  const [situacao, setSituacao] = useState<SituacaoProfessor>({ situacao: 'ativo', carga_disponivel: 20, data_inicio: '', data_fim: '', observacao: '' });
+  const [situacaoSaved, setSituacaoSaved] = useState(false);
+  const [situacaoError, setSituacaoError] = useState('');
 
-  const [discPreferidas, setDiscPreferidas] = useState<Set<string>>(new Set(['AED', 'ES']));
-  const [prefSaved, setPrefSaved] = useState(false);
+  useEffect(() => {
+    if (!profLogado?.id) return;
+    obterSituacaoProfessor(profLogado.id)
+      .then(setSituacao)
+      .catch(() => {});
+  }, [profLogado?.id]);
 
-  const toggleDiscPref = (sigla: string) => {
-    setDiscPreferidas(prev => {
-      const next = new Set(prev);
-      if (next.has(sigla)) next.delete(sigla); else next.add(sigla);
-      return next;
-    });
+  const handleSaveSituacao = async () => {
+    if (!profLogado?.id) {
+      setSituacaoError('Professor não identificado.');
+      return;
+    }
+    try {
+      const atualizada = await salvarSituacaoProfessor(profLogado.id, situacao);
+      setSituacao(atualizada);
+      setSituacaoError('');
+      setSituacaoSaved(true);
+      setTimeout(() => setSituacaoSaved(false), 2500);
+    } catch (err: any) {
+      setSituacaoError(err?.message || 'Erro ao salvar situação.');
+    }
   };
 
-  const handleSavePref = () => {
-    setPrefSaved(true);
-    setTimeout(() => setPrefSaved(false), 2500);
+  const [cursoForm, setCursoForm] = useState({ nome: '', nivel: 'Superior' });
+  const [cursoFormError, setCursoFormError] = useState('');
+
+  const saveCurso = async () => {
+    if (!cursoForm.nome.trim()) {
+      setCursoFormError('Nome do curso é obrigatório.');
+      return;
+    }
+    try {
+      const novo = await criarCurso(cursoForm);
+      setCursos(cs => [...cs, novo]);
+      setCursoForm({ nome: '', nivel: 'Superior' });
+      setCursoFormError('');
+    } catch (err: any) {
+      setCursoFormError(err?.message || 'Erro ao salvar curso.');
+    }
   };
 
-  // Slots definition for disponibilidade grid
+  const [relatorioCursoId, setRelatorioCursoId] = useState<number>(0);
+  const [relatorioSemestreId, setRelatorioSemestreId] = useState<number>(0);
+  const [relatorio, setRelatorio] = useState<RelatorioResponse | null>(null);
+  const [relatorioError, setRelatorioError] = useState('');
+  const [relatorioLoading, setRelatorioLoading] = useState(false);
+
+  useEffect(() => {
+    if (!relatorioCursoId && cursos.length) setRelatorioCursoId(cursos[0].id);
+    if (!relatorioSemestreId && semestres.length) setRelatorioSemestreId(semestres[0].id);
+  }, [cursos, semestres, relatorioCursoId, relatorioSemestreId]);
+
+  const carregarRelatorio = async () => {
+    if (!relatorioCursoId || !relatorioSemestreId) return;
+    setRelatorioLoading(true);
+    setRelatorioError('');
+    try {
+      setRelatorio(await emitirRelatorio(relatorioCursoId, relatorioSemestreId));
+    } catch (err: any) {
+      setRelatorio(null);
+      setRelatorioError(err?.message || 'Erro ao carregar relatório.');
+    } finally {
+      setRelatorioLoading(false);
+    }
+  };
+
   const DISP_SHIFTS = [
     { label: 'Manhã', slots: [
       { id: 'M1', time: '07:25' }, { id: 'M2', time: '08:25' },
@@ -1033,7 +1129,6 @@ function AppShell({ currentUser, onLogout }: { currentUser: SessaoUsuario; onLog
 
   return (
     <div className="flex h-screen w-full bg-background overflow-hidden">
-      {/* ── Sidebar ── */}
       <AnimatePresence mode="wait">
         {sidebarOpen && (
           <motion.aside
@@ -1068,7 +1163,6 @@ function AppShell({ currentUser, onLogout }: { currentUser: SessaoUsuario; onLog
             </nav>
 
             <div className="p-4 border-t border-sidebar-border space-y-1">
-              {/* Clickable user info → goes to perfil */}
               <button
                 onClick={() => setCurrentView('perfil')}
                 className="w-full flex items-center gap-2.5 px-2 py-2 mb-1 rounded-lg hover:bg-accent/60 transition-colors text-left"
@@ -1096,10 +1190,7 @@ function AppShell({ currentUser, onLogout }: { currentUser: SessaoUsuario; onLog
           </motion.aside>
         )}
       </AnimatePresence>
-
-      {/* ── Main content ── */}
       <div className="flex-1 flex flex-col h-full overflow-hidden">
-        {/* Header */}
         <header className="h-14 border-b flex items-center justify-between px-4 lg:px-6 bg-background shrink-0">
           <div className="flex items-center gap-4">
             <Button variant="ghost" size="icon" onClick={() => setSidebarOpen(v => !v)} className="hidden md:flex">
@@ -1120,11 +1211,7 @@ function AppShell({ currentUser, onLogout }: { currentUser: SessaoUsuario; onLog
             </button>
           </div>
         </header>
-
-        {/* Content */}
         <main className="flex-1 overflow-y-auto p-4 lg:p-8">
-
-          {/* ── DASHBOARD ──────────────────────────────────────────────── */}
           {currentView === 'dashboard' && (
             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-8 max-w-6xl mx-auto">
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
@@ -1133,14 +1220,12 @@ function AppShell({ currentUser, onLogout }: { currentUser: SessaoUsuario; onLog
                   <p className="text-muted-foreground">Gerencie a alocação de professores do IFCE Campus Tauá.</p>
                 </div>
                 {!isAdmin && (
-                  <Button onClick={() => setCurrentView('wizard')}>
+                  <Button onClick={() => setCurrentView('alocacoes')}>
                     <Play className="mr-2 h-4 w-4" />
                     Nova Simulação
                   </Button>
                 )}
               </div>
-
-              {/* Stat cards */}
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
                 <Card>
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -1164,7 +1249,7 @@ function AppShell({ currentUser, onLogout }: { currentUser: SessaoUsuario; onLog
                   <CardContent>
                     <div className="text-2xl font-bold">{resumo?.disciplinas ?? disciplinas.length}</div>
                     <p className="text-xs text-muted-foreground">
-                      Em {resumo?.cursos ?? MOCK_CURSOS.filter(c => disciplinas.some(d => d.cursoId === c.id)).length} cursos
+                      Em {resumo?.cursos ?? cursos.filter(c => disciplinas.some(d => d.cursoId === c.id)).length} cursos
                     </p>
                   </CardContent>
                 </Card>
@@ -1184,7 +1269,7 @@ function AppShell({ currentUser, onLogout }: { currentUser: SessaoUsuario; onLog
                           </>
                         ) : <div className="text-sm text-muted-foreground">Nenhum ativo</div>;
                       }
-                      const ativo = MOCK_SEMESTRES.find(s => s.statusEtapa !== 'CONCLUIDO');
+                      const ativo = semestres.find(s => s.statusEtapa !== 'CONCLUIDO');
                       return ativo ? (
                         <>
                           <div className="text-2xl font-bold">{ativo.nome}</div>
@@ -1207,51 +1292,7 @@ function AppShell({ currentUser, onLogout }: { currentUser: SessaoUsuario; onLog
                   </CardContent>
                 </Card>
               </div>
-
-              {/* Simulation status */}
               <div className="grid gap-4 md:grid-cols-2">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Status da Simulação</CardTitle>
-                    <CardDescription>Semestre 2024.1 — em andamento</CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-5">
-                    {[
-                      { label: 'Configuração de Ofertas', done: true, pct: 100 },
-                      { label: 'Restrições dos Professores', done: true, pct: 100 },
-                      { label: 'Simulação de Alocação', done: false, pct: 62 },
-                      { label: 'Aprovação Final', done: false, pct: 0 },
-                    ].map(step => (
-                      <div key={step.label} className="space-y-1.5">
-                        <div className="flex items-center justify-between text-sm">
-                          <div className="flex items-center gap-2">
-                            {step.done
-                              ? <CheckCircle2 className="h-4 w-4 text-green-500 shrink-0" />
-                              : <Clock className="h-4 w-4 text-muted-foreground shrink-0" />
-                            }
-                            <span className={step.done ? 'text-foreground' : 'text-muted-foreground'}>{step.label}</span>
-                          </div>
-                          <span className="text-xs text-muted-foreground">{step.pct}%</span>
-                        </div>
-                        <div className="h-1.5 bg-muted rounded-full overflow-hidden">
-                          <motion.div
-                            className={cn('h-full rounded-full', step.done ? 'bg-green-500' : 'bg-primary')}
-                            initial={{ width: 0 }}
-                            animate={{ width: `${step.pct}%` }}
-                            transition={{ duration: 0.8, ease: 'easeOut' }}
-                          />
-                        </div>
-                      </div>
-                    ))}
-                    {!isAdmin && (
-                      <Button variant="outline" className="w-full mt-2" onClick={() => setCurrentView('wizard')}>
-                        <Play className="mr-2 h-4 w-4" />
-                        Continuar Simulação
-                      </Button>
-                    )}
-                  </CardContent>
-                </Card>
-
                 <Card>
                   <CardHeader>
                     <CardTitle>Histórico de Semestres</CardTitle>
@@ -1266,7 +1307,7 @@ function AppShell({ currentUser, onLogout }: { currentUser: SessaoUsuario; onLog
                         </div>
                         <Badge variant="secondary">{sem.status}</Badge>
                       </div>
-                    )) : MOCK_SEMESTRES.map(sem => (
+                    )) : semestres.map(sem => (
                       <div key={sem.id} className="flex items-center justify-between p-3 rounded-lg border">
                         <div>
                           <p className="font-medium text-sm">{sem.nome}</p>
@@ -1290,8 +1331,6 @@ function AppShell({ currentUser, onLogout }: { currentUser: SessaoUsuario; onLog
               </div>
             </motion.div>
           )}
-
-          {/* ── WIZARD ────────────────────────────────────────────────── */}
           {currentView === 'wizard' && (
             <div className="max-w-4xl mx-auto space-y-6">
               <div className="flex items-center justify-between">
@@ -1301,8 +1340,6 @@ function AppShell({ currentUser, onLogout }: { currentUser: SessaoUsuario; onLog
                 </div>
                 <Button variant="ghost" onClick={() => setCurrentView(isAdmin ? 'dashboard' : 'semestres')}>Cancelar</Button>
               </div>
-
-              {/* Stepper */}
               <div className="relative">
                 <div className="absolute left-0 top-4 w-full h-0.5 bg-muted">
                   <motion.div
@@ -1594,8 +1631,6 @@ function AppShell({ currentUser, onLogout }: { currentUser: SessaoUsuario; onLog
               </Card>
             </div>
           )}
-
-          {/* ── PROFESSORES ───────────────────────────────────────────── */}
           {currentView === 'professores' && (
             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6 max-w-6xl mx-auto">
               <div className="flex items-center justify-between gap-4 flex-wrap">
@@ -1667,8 +1702,6 @@ function AppShell({ currentUser, onLogout }: { currentUser: SessaoUsuario; onLog
               <p className="text-xs text-muted-foreground">DE: mín 10h — máx 20h em sala/sem · 40H: máx 40h/sem · 20H: máx 20h/sem</p>
             </motion.div>
           )}
-
-          {/* ── DISCIPLINAS ────────────────────────────────────────────── */}
           {currentView === 'disciplinas' && (
             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6 max-w-6xl mx-auto">
               <div className="flex items-center justify-between gap-4 flex-wrap">
@@ -1707,7 +1740,7 @@ function AppShell({ currentUser, onLogout }: { currentUser: SessaoUsuario; onLog
                     {disciplinas
                       .filter(d => !discSearch || d.nome.toLowerCase().includes(discSearch.toLowerCase()) || d.sigla.toLowerCase().includes(discSearch.toLowerCase()))
                       .map(disc => {
-                        const curso = MOCK_CURSOS.find(c => c.id === disc.cursoId);
+                        const curso = cursos.find(c => c.id === disc.cursoId);
                         return (
                           <TableRow key={disc.id}>
                             <TableCell><Badge variant="secondary">{disc.sigla}</Badge></TableCell>
@@ -1733,8 +1766,6 @@ function AppShell({ currentUser, onLogout }: { currentUser: SessaoUsuario; onLog
               </Card>
             </motion.div>
           )}
-
-          {/* ── TURMAS ─────────────────────────────────────────────────── */}
           {currentView === 'turmas' && (
             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6 max-w-6xl mx-auto">
               <div className="flex items-center justify-between gap-4 flex-wrap">
@@ -1773,7 +1804,7 @@ function AppShell({ currentUser, onLogout }: { currentUser: SessaoUsuario; onLog
                     {turmas
                       .filter(t => !turmaSearch || t.nome.toLowerCase().includes(turmaSearch.toLowerCase()) || t.codigo.toLowerCase().includes(turmaSearch.toLowerCase()))
                       .map(turma => {
-                        const curso = MOCK_CURSOS.find(c => c.id === turma.cursoId);
+                        const curso = cursos.find(c => c.id === turma.cursoId);
                         return (
                           <TableRow key={turma.id}>
                             <TableCell><code className="text-xs bg-muted px-1.5 py-0.5 rounded">{turma.codigo}</code></TableCell>
@@ -1803,8 +1834,6 @@ function AppShell({ currentUser, onLogout }: { currentUser: SessaoUsuario; onLog
               </Card>
             </motion.div>
           )}
-
-          {/* ── SEMESTRES ──────────────────────────────────────────────── */}
           {currentView === 'semestres' && (
             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6 max-w-6xl mx-auto">
               <div className="flex items-center justify-between">
@@ -1812,9 +1841,14 @@ function AppShell({ currentUser, onLogout }: { currentUser: SessaoUsuario; onLog
                   <h2 className="text-2xl font-bold tracking-tight">Semestres Letivos</h2>
                   <p className="text-muted-foreground">Histórico e acompanhamento de etapas do fluxo de alocação.</p>
                 </div>
-                <Button onClick={() => setCurrentView('wizard')}>
-                  <Plus className="mr-2 h-4 w-4" />Criar Semestre
-                </Button>
+                <div className="flex items-center gap-2">
+                  <Button variant="outline" onClick={() => setCurrentView('alocacoes')}>
+                    <Play className="mr-2 h-4 w-4" />Assistente
+                  </Button>
+                  <Button onClick={openSemAdd}>
+                    <Plus className="mr-2 h-4 w-4" />Novo Semestre
+                  </Button>
+                </div>
               </div>
               <div className="flex items-center gap-2 text-xs text-muted-foreground">
                 {(['OFERTAS', 'RESTRICOES', 'SIMULACAO', 'CONCLUIDO'] as StatusEtapa[]).map((etapa, i, arr) => (
@@ -1825,7 +1859,7 @@ function AppShell({ currentUser, onLogout }: { currentUser: SessaoUsuario; onLog
                 ))}
               </div>
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {MOCK_SEMESTRES.map(sem => (
+                {semestres.map(sem => (
                   <Card key={sem.id} className="relative overflow-hidden">
                     {sem.statusEtapa !== 'CONCLUIDO' && (
                       <div className="absolute top-0 right-0 w-16 h-16 pointer-events-none">
@@ -1841,16 +1875,22 @@ function AppShell({ currentUser, onLogout }: { currentUser: SessaoUsuario; onLog
                     <CardContent>
                       <Badge variant={etapaBadgeVariant(sem.statusEtapa)}>{ETAPA_LABELS[sem.statusEtapa]}</Badge>
                     </CardContent>
-                    <CardFooter>
-                      <Button variant="outline" className="w-full">Ver Detalhes</Button>
+                    <CardFooter className="gap-2">
+                      <Button variant="outline" className="flex-1" onClick={() => openSemEdit(sem)}>
+                        <Edit className="mr-2 h-4 w-4" />Editar
+                      </Button>
+                      <Button variant="ghost" size="icon" className="text-destructive shrink-0" onClick={() => deleteSem(sem.id)}>
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
                     </CardFooter>
                   </Card>
                 ))}
+                {semestres.length === 0 && (
+                  <p className="text-sm text-muted-foreground col-span-full text-center py-10">Nenhum semestre cadastrado.</p>
+                )}
               </div>
             </motion.div>
           )}
-
-          {/* ── COORDENADORES ─────────────────────────────────────────── */}
           {currentView === 'coordenadores' && isAdmin && (
             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6 max-w-5xl mx-auto">
               <div className="flex items-center justify-between gap-4 flex-wrap">
@@ -1874,7 +1914,7 @@ function AppShell({ currentUser, onLogout }: { currentUser: SessaoUsuario; onLog
                     <TableRow>
                       <TableHead>Nome</TableHead>
                       <TableHead>E-mail</TableHead>
-                      <TableHead>Departamento</TableHead>
+                      <TableHead>Curso</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead className="text-right">Ações</TableHead>
                     </TableRow>
@@ -1891,17 +1931,16 @@ function AppShell({ currentUser, onLogout }: { currentUser: SessaoUsuario; onLog
                             </div>
                           </TableCell>
                           <TableCell className="text-muted-foreground text-sm">{c.email}</TableCell>
-                          <TableCell className="text-sm">{c.departamento}</TableCell>
+                          <TableCell className="text-sm">{cursos.find(cur => cur.id === c.cursoId)?.nome ?? '—'}</TableCell>
                           <TableCell>
-                            <button
-                              onClick={() => toggleCoordAtivo(c.id)}
+                            <span
                               className={cn(
-                                'inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold border transition-colors cursor-pointer',
-                                c.ativo ? 'border-green-200 bg-green-50 text-green-700 hover:bg-green-100' : 'border-gray-200 bg-gray-50 text-gray-500 hover:bg-gray-100'
+                                'inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold border',
+                                c.ativo ? 'border-green-200 bg-green-50 text-green-700' : 'border-gray-200 bg-gray-50 text-gray-500'
                               )}
                             >
                               {c.ativo ? 'Ativo' : 'Inativo'}
-                            </button>
+                            </span>
                           </TableCell>
                           <TableCell className="text-right">
                             <Button variant="ghost" size="icon" onClick={() => openCoordEdit(c)}>
@@ -1922,8 +1961,6 @@ function AppShell({ currentUser, onLogout }: { currentUser: SessaoUsuario; onLog
               <p className="text-xs text-muted-foreground">Coordenadores têm acesso ao módulo de semestres, ofertas, restrições e simulação de alocação.</p>
             </motion.div>
           )}
-
-          {/* ── PERFIL ────────────────────────────────────────────────── */}
           {currentView === 'perfil' && (
             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="max-w-lg mx-auto space-y-6">
               <div>
@@ -1932,7 +1969,6 @@ function AppShell({ currentUser, onLogout }: { currentUser: SessaoUsuario; onLog
               </div>
               <Card>
                 <CardContent className="pt-8 space-y-6">
-                  {/* Photo upload */}
                   <div className="flex flex-col items-center gap-4">
                     <div className="relative w-28 h-28">
                       <div className="w-28 h-28 rounded-full overflow-hidden bg-primary/10 border-4 border-primary/20 flex items-center justify-center">
@@ -2015,17 +2051,14 @@ function AppShell({ currentUser, onLogout }: { currentUser: SessaoUsuario; onLog
               </Card>
             </motion.div>
           )}
-
-          {/* ── MINHA AGENDA (professor only) ─────────────────────────── */}
           {currentView === 'minha-agenda' && (
             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6 max-w-5xl mx-auto">
               <div>
                 <h2 className="text-2xl font-bold tracking-tight">Minha Agenda</h2>
-                <p className="text-muted-foreground">Sua carga horária e grade de aulas — semestre 2024.1</p>
+                <p className="text-muted-foreground">Sua carga horária e grade de aulas retornadas pela API.</p>
               </div>
 
-              {/* Stats — 4 cards */}
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 <Card>
                   <CardHeader className="pb-2">
                     <CardTitle className="text-sm font-medium text-muted-foreground">Carga Máxima Semanal</CardTitle>
@@ -2041,44 +2074,26 @@ function AppShell({ currentUser, onLogout }: { currentUser: SessaoUsuario; onLog
                   </CardHeader>
                   <CardContent>
                     <div className="text-2xl font-bold">{resumoProf?.disciplinas_atribuidas ?? horasAlocadas}</div>
-                    <p className="text-xs text-muted-foreground mt-1">Ofertas vinculadas a você no semestre</p>
+                    <p className="text-xs text-muted-foreground mt-1">Ofertas vinculadas a você no backend</p>
                   </CardContent>
                 </Card>
                 <Card>
                   <CardHeader className="pb-2">
-                    <CardTitle className="text-sm font-medium text-muted-foreground">Horários Disponíveis</CardTitle>
+                    <CardTitle className="text-sm font-medium text-muted-foreground">Horários Bloqueados</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold text-green-600">{disponibilidade.size}</div>
-                    <button
-                      onClick={() => setCurrentView('minha-disponibilidade')}
-                      className="text-xs text-primary hover:underline mt-1 block"
-                    >
+                    <div className="text-2xl font-bold text-destructive">{disponibilidade.size}</div>
+                    <button onClick={() => setCurrentView('minha-disponibilidade')} className="text-xs text-primary hover:underline mt-1 block">
                       Editar disponibilidade →
-                    </button>
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-sm font-medium text-muted-foreground">Disciplinas Preferidas</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold text-amber-600">{discPreferidas.size}</div>
-                    <button
-                      onClick={() => setCurrentView('disciplinas-preferidas')}
-                      className="text-xs text-primary hover:underline mt-1 block"
-                    >
-                      Editar preferências →
                     </button>
                   </CardContent>
                 </Card>
               </div>
 
-              {/* Weekly calendar */}
               <Card>
                 <CardHeader>
                   <CardTitle>Grade Semanal</CardTitle>
-                  <CardDescription>Suas aulas alocadas para o semestre 2024.1</CardDescription>
+                  <CardDescription>Aulas alocadas para seu professor, conforme retorno da API.</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="overflow-x-auto">
@@ -2086,9 +2101,7 @@ function AppShell({ currentUser, onLogout }: { currentUser: SessaoUsuario; onLog
                       <thead>
                         <tr>
                           <th className="p-2 text-left text-muted-foreground w-20 border-b">Horário</th>
-                          {DAYS.map(d => (
-                            <th key={d} className="p-2 text-center text-muted-foreground border-b font-semibold">{DAY_LABELS[d]}</th>
-                          ))}
+                          {DAYS.map(d => <th key={d} className="p-2 text-center text-muted-foreground border-b font-semibold">{DAY_LABELS[d]}</th>)}
                         </tr>
                       </thead>
                       <tbody>
@@ -2106,17 +2119,15 @@ function AppShell({ currentUser, onLogout }: { currentUser: SessaoUsuario; onLog
                                   <span className="ml-1 text-muted-foreground/60">{SLOT_TIMES[slot]}</span>
                                 </td>
                                 {DAYS.map(day => {
-                                  const aula = profAgenda.find(a => a.day === day && a.slot === slot);
+                                  const aula = alocacoesProfessor.find(a => a.dia === day && a.slot === slot);
                                   return (
                                     <td key={day} className="p-1 text-center">
                                       {aula ? (
-                                        <div className={cn('rounded border px-1 py-1 text-center leading-tight', aula.colorClass)}>
-                                          <p className="font-bold">{aula.disciplina}</p>
-                                          <p className="text-[9px] opacity-70">{aula.turma.split(' ')[0]}</p>
+                                        <div className="rounded border px-1 py-1 text-center leading-tight bg-blue-100 border-blue-300 text-blue-800">
+                                          <p className="font-bold">{aula.disciplina || 'Disciplina'}</p>
+                                          <p className="text-[9px] opacity-70">{aula.turma || 'Turma'}</p>
                                         </div>
-                                      ) : (
-                                        <div className="w-full h-7 rounded bg-muted/30 border border-muted/50" />
-                                      )}
+                                      ) : <div className="w-full h-7 rounded bg-muted/30 border border-muted/50" />}
                                     </td>
                                   );
                                 })}
@@ -2127,28 +2138,18 @@ function AppShell({ currentUser, onLogout }: { currentUser: SessaoUsuario; onLog
                       </tbody>
                     </table>
                   </div>
-                  <div className="mt-4 flex flex-wrap gap-3">
-                    {[...new Set(profAgenda.map(a => a.disciplina))].map(disc => {
-                      const sample = profAgenda.find(a => a.disciplina === disc)!;
-                      return (
-                        <div key={disc} className={cn('flex items-center gap-1.5 px-2 py-1 rounded border text-xs font-medium', sample.colorClass)}>
-                          <div className="w-2.5 h-2.5 rounded-sm border border-current opacity-70" />
-                          {disc}
-                        </div>
-                      );
-                    })}
-                  </div>
+                  {alocacoesProfessor.length === 0 && (
+                    <p className="text-xs text-muted-foreground mt-4">Nenhuma alocação retornada pela API para este professor.</p>
+                  )}
                 </CardContent>
               </Card>
             </motion.div>
           )}
-
-          {/* ── MINHA DISPONIBILIDADE ────────────────────────────────── */}
           {currentView === 'minha-disponibilidade' && (
             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6 max-w-5xl mx-auto">
               <div>
                 <h2 className="text-2xl font-bold tracking-tight">Minha Disponibilidade</h2>
-                <p className="text-muted-foreground">Informe os horários em que você está disponível para receber alocação de aulas.</p>
+                <p className="text-muted-foreground">Marque os horários em que você não pode receber alocação de aulas.</p>
               </div>
 
               <Card>
@@ -2157,21 +2158,27 @@ function AppShell({ currentUser, onLogout }: { currentUser: SessaoUsuario; onLog
                     <div>
                       <CardTitle>Grade de Disponibilidade</CardTitle>
                       <CardDescription className="mt-1">
-                        Clique nas células para marcar sua disponibilidade. Verde = disponível · Azul = aula já alocada.
+                        Clique nas células para marcar horários bloqueados. Vermelho = indisponível · Azul = aula já alocada.
                       </CardDescription>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
                       <span className="text-sm text-muted-foreground whitespace-nowrap">
-                        Horários selecionados: <strong className="text-foreground">{disponibilidade.size}</strong>
+                        Horários bloqueados: <strong className="text-foreground">{disponibilidade.size}</strong>
                       </span>
                       <Button variant="outline" size="sm" onClick={() => setDisponibilidade(new Set())}>
-                        Limpar seleção
+                        Limpar bloqueios
                       </Button>
                       <Button size="sm" onClick={handleSaveDisp}>
                         <Save className="mr-1.5 h-3.5 w-3.5" />Salvar disponibilidade
                       </Button>
                     </div>
                   </div>
+                  {dispError && (
+                    <div className="mt-3 flex items-center gap-2 px-3 py-2.5 bg-destructive/10 border border-destructive/20 rounded-lg">
+                      <AlertCircle className="h-4 w-4 text-destructive shrink-0" />
+                      <p className="text-xs text-destructive font-medium">{dispError}</p>
+                    </div>
+                  )}
                   <AnimatePresence>
                     {dispSaved && (
                       <motion.div
@@ -2213,13 +2220,13 @@ function AppShell({ currentUser, onLogout }: { currentUser: SessaoUsuario; onLog
                                 </td>
                                 {DAYS.map(day => {
                                   const key = `${day}_${slotId}`;
-                                  const alocada = profAgenda.find(a => a.day === day && a.slot === slotId);
+                                  const alocada = alocacoesProfessor.find(a => a.dia === day && a.slot === slotId);
                                   const isDisp = disponibilidade.has(key);
                                   return (
                                     <td key={day} className="p-1 text-center">
                                       {alocada ? (
                                         <div className="w-full min-h-[36px] rounded border bg-blue-100 border-blue-300 text-blue-800 flex flex-col items-center justify-center px-1 py-1 cursor-not-allowed">
-                                          <span className="font-bold text-[10px]">{alocada.disciplina}</span>
+                                          <span className="font-bold text-[10px]">{alocada.disciplina || 'Aula'}</span>
                                           <span className="text-[9px] opacity-70">Alocada</span>
                                         </div>
                                       ) : (
@@ -2229,16 +2236,21 @@ function AppShell({ currentUser, onLogout }: { currentUser: SessaoUsuario; onLog
                                           className={cn(
                                             'w-full min-h-[36px] rounded border transition-all duration-150 flex flex-col items-center justify-center px-1 py-1 text-[10px] font-medium',
                                             isDisp
-                                              ? 'bg-green-100 border-green-400 text-green-800 hover:bg-green-200'
-                                              : 'bg-gray-50 border-gray-200 text-gray-400 hover:bg-gray-100'
+                                              ? 'bg-destructive/10 border-destructive/30 text-destructive hover:bg-destructive/20'
+                                              : 'bg-green-50 border-green-200 text-green-700 hover:bg-green-100'
                                           )}
                                         >
                                           {isDisp ? (
                                             <>
-                                              <Check className="h-3 w-3 mb-0.5" />
-                                              <span>Disponível</span>
+                                              <Ban className="h-3 w-3 mb-0.5" />
+                                              <span>Bloqueado</span>
                                             </>
-                                          ) : '—'}
+                                          ) : (
+                                            <>
+                                              <Check className="h-3 w-3 mb-0.5" />
+                                              <span>Livre</span>
+                                            </>
+                                          )}
                                         </button>
                                       )}
                                     </td>
@@ -2251,16 +2263,14 @@ function AppShell({ currentUser, onLogout }: { currentUser: SessaoUsuario; onLog
                       </tbody>
                     </table>
                   </div>
-
-                  {/* Legend */}
                   <div className="mt-4 flex flex-wrap gap-4 text-xs text-muted-foreground">
                     <div className="flex items-center gap-1.5">
-                      <div className="w-4 h-4 rounded border bg-green-100 border-green-400" />
-                      <span>Disponível</span>
+                      <div className="w-4 h-4 rounded border bg-green-50 border-green-200" />
+                      <span>Livre</span>
                     </div>
                     <div className="flex items-center gap-1.5">
-                      <div className="w-4 h-4 rounded border bg-gray-50 border-gray-200" />
-                      <span>Indisponível</span>
+                      <div className="w-4 h-4 rounded border bg-destructive/10 border-destructive/30" />
+                      <span>Bloqueado</span>
                     </div>
                     <div className="flex items-center gap-1.5">
                       <div className="w-4 h-4 rounded border bg-blue-100 border-blue-300" />
@@ -2271,95 +2281,228 @@ function AppShell({ currentUser, onLogout }: { currentUser: SessaoUsuario; onLog
               </Card>
             </motion.div>
           )}
-
-          {/* ── DISCIPLINAS PREFERIDAS ────────────────────────────────── */}
-          {currentView === 'disciplinas-preferidas' && (
+          {currentView === 'cursos' && isAdmin && (
             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6 max-w-5xl mx-auto">
               <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
                 <div>
-                  <h2 className="text-2xl font-bold tracking-tight">Disciplinas Preferidas</h2>
-                  <p className="text-muted-foreground">Selecione as disciplinas que você tem preferência em ministrar neste semestre.</p>
-                </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  <span className="text-sm text-muted-foreground whitespace-nowrap">
-                    Selecionadas: <strong className="text-foreground">{discPreferidas.size}</strong>
-                  </span>
-                  <Button onClick={handleSavePref}>
-                    <Save className="mr-1.5 h-4 w-4" />Salvar preferências
-                  </Button>
+                  <h2 className="text-2xl font-bold tracking-tight">Cursos</h2>
+                  <p className="text-muted-foreground">Cadastro administrativo de cursos do campus.</p>
                 </div>
               </div>
 
-              <AnimatePresence>
-                {prefSaved && (
-                  <motion.div
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: 'auto' }}
-                    exit={{ opacity: 0, height: 0 }}
-                    className="flex items-center gap-2 px-3 py-2.5 bg-green-50 border border-green-200 rounded-lg"
-                  >
-                    <CheckCircle2 className="h-4 w-4 text-green-600 shrink-0" />
-                    <p className="text-xs text-green-700 font-medium">Preferências salvas com sucesso.</p>
-                  </motion.div>
-                )}
-              </AnimatePresence>
+              <Card>
+                <CardHeader>
+                  <CardTitle>Criar curso</CardTitle>
+                  <CardDescription>O cadastro será enviado diretamente para a API.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {cursoFormError && (
+                    <div className="flex items-center gap-2 px-3 py-2.5 bg-destructive/10 border border-destructive/20 rounded-lg">
+                      <AlertCircle className="h-4 w-4 text-destructive shrink-0" />
+                      <p className="text-xs text-destructive">{cursoFormError}</p>
+                    </div>
+                  )}
+                  <div className="grid gap-4 md:grid-cols-[1fr_220px_auto] items-end">
+                    <div>
+                      <Label className="text-xs mb-1.5 block">Nome do curso</Label>
+                      <Input value={cursoForm.nome} onChange={e => { setCursoForm(f => ({ ...f, nome: e.target.value })); setCursoFormError(''); }} placeholder="Ex.: Análise e Desenvolvimento de Sistemas" />
+                    </div>
+                    <div>
+                      <Label className="text-xs mb-1.5 block">Nível</Label>
+                      <select value={cursoForm.nivel} onChange={e => setCursoForm(f => ({ ...f, nivel: e.target.value }))} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
+                        <option>Superior</option>
+                        <option>Técnico</option>
+                        <option>Integrado</option>
+                        <option>Subsequente</option>
+                      </select>
+                    </div>
+                    <Button onClick={saveCurso}><Plus className="mr-2 h-4 w-4" />Adicionar</Button>
+                  </div>
+                </CardContent>
+              </Card>
 
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                {DISC_PREF_LIST.map(disc => {
-                  const selected = discPreferidas.has(disc.sigla);
-                  return (
-                    <motion.button
-                      key={disc.sigla}
-                      type="button"
-                      onClick={() => toggleDiscPref(disc.sigla)}
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.98 }}
-                      className={cn(
-                        'relative text-left rounded-xl border-2 p-4 transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary',
-                        selected
-                          ? 'border-green-500 bg-green-50 shadow-sm'
-                          : 'border-border bg-card hover:border-primary/40 hover:bg-muted/30'
-                      )}
-                    >
-                      {selected && (
-                        <div className="absolute top-3 right-3 w-5 h-5 rounded-full bg-green-500 flex items-center justify-center">
-                          <Check className="h-3 w-3 text-white" />
-                        </div>
-                      )}
-                      <div className={cn(
-                        'inline-flex items-center rounded-lg px-2.5 py-1 text-sm font-bold mb-2',
-                        selected ? 'bg-green-500 text-white' : 'bg-primary/10 text-primary'
-                      )}>
-                        {disc.sigla}
-                      </div>
-                      <p className={cn('text-sm font-medium leading-tight', selected ? 'text-green-900' : 'text-foreground')}>
-                        {disc.nome}
-                      </p>
-                      <div className="flex items-center gap-2 mt-2">
-                        <Badge variant="outline" className={cn('text-[10px]', selected && 'border-green-300 text-green-700')}>
-                          {disc.curso}
-                        </Badge>
-                        <span className={cn('text-[10px]', selected ? 'text-green-600' : 'text-muted-foreground')}>
-                          {disc.cargaHoraria}h
-                        </span>
-                      </div>
-                      {selected && (
-                        <p className="text-[10px] font-semibold text-green-600 mt-2">✓ Selecionada</p>
-                      )}
-                    </motion.button>
-                  );
-                })}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Cursos cadastrados</CardTitle>
+                  <CardDescription>Lista retornada por /api/cursos.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Table>
+                    <TableHeader><TableRow><TableHead>Sigla</TableHead><TableHead>Nome</TableHead><TableHead>Nível</TableHead></TableRow></TableHeader>
+                    <TableBody>
+                      {cursos.length === 0 ? (
+                        <TableRow><TableCell colSpan={3} className="text-muted-foreground">Nenhum curso retornado pela API.</TableCell></TableRow>
+                      ) : cursos.map(c => (
+                        <TableRow key={c.id}><TableCell className="font-medium">{c.sigla}</TableCell><TableCell>{c.nome}</TableCell><TableCell>{c.nivel ?? '—'}</TableCell></TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+            </motion.div>
+          )}
+          {currentView === 'alocacoes' && !isProf && (
+            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6 max-w-6xl mx-auto">
+              <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+                <div>
+                  <h2 className="text-2xl font-bold tracking-tight">Alocações</h2>
+                  <p className="text-muted-foreground">Geração da grade pelo solver e visualização do resultado retornado pela API.</p>
+                </div>
               </div>
 
-              <p className="text-xs text-muted-foreground">
-                Suas preferências são consideradas no processo de alocação automática, mas não garantem a atribuição.
-              </p>
+              <Card>
+                <CardHeader>
+                  <CardTitle>Gerar grade</CardTitle>
+                  <CardDescription>Selecione o semestre e envie a solicitação ao backend.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {alocacaoError && (
+                    <div className="flex items-center gap-2 px-3 py-2.5 bg-destructive/10 border border-destructive/20 rounded-lg">
+                      <AlertCircle className="h-4 w-4 text-destructive shrink-0" />
+                      <p className="text-xs text-destructive">{alocacaoError}</p>
+                    </div>
+                  )}
+                  <div className="grid gap-4 md:grid-cols-[1fr_auto] items-end">
+                    <div>
+                      <Label className="text-xs mb-1.5 block">Semestre</Label>
+                      <select value={selectedSemestreId} onChange={e => setSelectedSemestreId(Number(e.target.value))} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
+                        <option value={0}>Selecione</option>
+                        {semestres.map(s => <option key={s.id} value={s.id}>{s.nome}</option>)}
+                      </select>
+                    </div>
+                    <Button onClick={runSimulation} disabled={!selectedSemestreId || simulationRunning}>
+                      <Play className="mr-2 h-4 w-4" />{simulationRunning ? 'Gerando...' : 'Gerar alocação'}
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Resultado</CardTitle>
+                  <CardDescription>Alocações retornadas pela API.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Table>
+                    <TableHeader>
+                      <TableRow><TableHead>Professor</TableHead><TableHead>Disciplina</TableHead><TableHead>Turma</TableHead><TableHead>Dia</TableHead><TableHead>Horário</TableHead></TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {alocacoes.length === 0 ? (
+                        <TableRow><TableCell colSpan={5} className="text-muted-foreground">Nenhuma alocação retornada pela API.</TableCell></TableRow>
+                      ) : alocacoes.map(a => (
+                        <TableRow key={a.id}>
+                          <TableCell>{a.professor || '—'}</TableCell>
+                          <TableCell>{a.disciplina || `Oferta ${a.ofertaId}`}</TableCell>
+                          <TableCell>{a.turma || '—'}</TableCell>
+                          <TableCell>{a.dia || '—'}</TableCell>
+                          <TableCell>{a.horario || '—'}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+            </motion.div>
+          )}
+          {currentView === 'relatorios' && !isProf && (
+            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6 max-w-6xl mx-auto">
+              <div>
+                <h2 className="text-2xl font-bold tracking-tight">Relatórios</h2>
+                <p className="text-muted-foreground">Consulta de relatórios por curso e semestre.</p>
+              </div>
+
+              <Card>
+                <CardHeader><CardTitle>Filtros</CardTitle><CardDescription>Os dados são carregados diretamente da rota de relatórios.</CardDescription></CardHeader>
+                <CardContent className="space-y-4">
+                  {relatorioError && (
+                    <div className="flex items-center gap-2 px-3 py-2.5 bg-destructive/10 border border-destructive/20 rounded-lg">
+                      <AlertCircle className="h-4 w-4 text-destructive shrink-0" />
+                      <p className="text-xs text-destructive">{relatorioError}</p>
+                    </div>
+                  )}
+                  <div className="grid gap-4 md:grid-cols-[1fr_1fr_auto] items-end">
+                    <div>
+                      <Label className="text-xs mb-1.5 block">Curso</Label>
+                      <select value={relatorioCursoId} onChange={e => setRelatorioCursoId(Number(e.target.value))} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
+                        <option value={0}>Selecione</option>
+                        {cursos.map(c => <option key={c.id} value={c.id}>{c.sigla} — {c.nome}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <Label className="text-xs mb-1.5 block">Semestre</Label>
+                      <select value={relatorioSemestreId} onChange={e => setRelatorioSemestreId(Number(e.target.value))} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
+                        <option value={0}>Selecione</option>
+                        {semestres.map(s => <option key={s.id} value={s.id}>{s.nome}</option>)}
+                      </select>
+                    </div>
+                    <Button onClick={carregarRelatorio} disabled={!relatorioCursoId || !relatorioSemestreId || relatorioLoading}>{relatorioLoading ? 'Carregando...' : 'Gerar relatório'}</Button>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {relatorio && (
+                <Card>
+                  <CardHeader><CardTitle>{relatorio.curso} — {relatorio.semestre}</CardTitle><CardDescription>Resumo do relatório</CardDescription></CardHeader>
+                  <CardContent className="space-y-6">
+                    <div className="grid gap-4 md:grid-cols-4">
+                      <Card><CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground">Turmas</CardTitle></CardHeader><CardContent><div className="text-2xl font-bold">{relatorio.resumo.turmas}</div></CardContent></Card>
+                      <Card><CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground">Disciplinas</CardTitle></CardHeader><CardContent><div className="text-2xl font-bold">{relatorio.resumo.disciplinas}</div></CardContent></Card>
+                      <Card><CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground">Professores</CardTitle></CardHeader><CardContent><div className="text-2xl font-bold">{relatorio.resumo.professores}</div></CardContent></Card>
+                      <Card><CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground">Carga Total</CardTitle></CardHeader><CardContent><div className="text-2xl font-bold">{relatorio.resumo.carga_total}h</div></CardContent></Card>
+                    </div>
+                    {relatorio.turmas.map(t => (
+                      <div key={t.nome} className="space-y-2">
+                        <h3 className="font-semibold">{t.nome}</h3>
+                        <Table>
+                          <TableHeader><TableRow><TableHead>Dia</TableHead><TableHead>Horário</TableHead><TableHead>Disciplina</TableHead><TableHead>Professor</TableHead></TableRow></TableHeader>
+                          <TableBody>
+                            {t.grade.length === 0 ? <TableRow><TableCell colSpan={4} className="text-muted-foreground">Sem aulas retornadas.</TableCell></TableRow> : t.grade.map((a, i) => (
+                              <TableRow key={`${t.nome}-${i}`}><TableCell>{a.dia}</TableCell><TableCell>{a.horario}</TableCell><TableCell>{a.disciplina}</TableCell><TableCell>{a.professor}</TableCell></TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    ))}
+                  </CardContent>
+                </Card>
+              )}
+            </motion.div>
+          )}
+          {currentView === 'minha-situacao' && isProf && (
+            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6 max-w-3xl mx-auto">
+              <div>
+                <h2 className="text-2xl font-bold tracking-tight">Minha Situação</h2>
+                <p className="text-muted-foreground">Registro de professor ativo, afastado ou com carga reduzida.</p>
+              </div>
+              <Card>
+                <CardHeader><CardTitle>Situação docente</CardTitle><CardDescription>As informações serão enviadas para a API de professor.</CardDescription></CardHeader>
+                <CardContent className="space-y-4">
+                  {situacaoError && <div className="flex items-center gap-2 px-3 py-2.5 bg-destructive/10 border border-destructive/20 rounded-lg"><AlertCircle className="h-4 w-4 text-destructive" /><p className="text-xs text-destructive">{situacaoError}</p></div>}
+                  {situacaoSaved && <div className="flex items-center gap-2 px-3 py-2.5 bg-green-50 border border-green-200 rounded-lg"><CheckCircle2 className="h-4 w-4 text-green-600" /><p className="text-xs text-green-700">Situação salva com sucesso.</p></div>}
+                  <div>
+                    <Label className="text-xs mb-1.5 block">Situação</Label>
+                    <select value={situacao.situacao} onChange={e => setSituacao(s => ({ ...s, situacao: e.target.value as SituacaoProfessor['situacao'] }))} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
+                      <option value="ativo">Ativo</option>
+                      <option value="afastado">Afastado</option>
+                      <option value="carga_reduzida">Carga reduzida</option>
+                    </select>
+                  </div>
+                  <div>
+                    <Label className="text-xs mb-1.5 block">Carga disponível</Label>
+                    <Input type="number" min={0} value={situacao.carga_disponivel} onChange={e => setSituacao(s => ({ ...s, carga_disponivel: Number(e.target.value) }))} />
+                  </div>
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div><Label className="text-xs mb-1.5 block">Início</Label><Input type="date" value={situacao.data_inicio || ''} onChange={e => setSituacao(s => ({ ...s, data_inicio: e.target.value }))} /></div>
+                    <div><Label className="text-xs mb-1.5 block">Fim</Label><Input type="date" value={situacao.data_fim || ''} onChange={e => setSituacao(s => ({ ...s, data_fim: e.target.value }))} /></div>
+                  </div>
+                  <div><Label className="text-xs mb-1.5 block">Observação</Label><textarea value={situacao.observacao || ''} onChange={e => setSituacao(s => ({ ...s, observacao: e.target.value }))} className="min-h-28 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" /></div>
+                  <Button className="w-full" onClick={handleSaveSituacao}><Save className="mr-2 h-4 w-4" />Salvar situação</Button>
+                </CardContent>
+              </Card>
             </motion.div>
           )}
 
-          {/* ── MODALS ────────────────────────────────────────────────── */}
-
-          {/* Professor Modal */}
           <AnimatePresence>
             {profModal.open && (
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/40 backdrop-blur-[2px] flex items-center justify-center z-50 p-4">
@@ -2404,6 +2547,29 @@ function AppShell({ currentUser, onLogout }: { currentUser: SessaoUsuario; onLog
                       <Label className="text-xs mb-1.5 block">Área de Atuação</Label>
                       <Input value={profForm.areaAtuacao} onChange={e => setProfForm(f => ({ ...f, areaAtuacao: e.target.value }))} placeholder="Ex.: Computação, Matemática..." />
                     </div>
+                    <div>
+                      <Label className="text-xs mb-1.5 block">
+                        Senha de acesso <span className="text-destructive">*</span>
+                        {profModal.editId !== null && <span className="text-muted-foreground font-normal"> (deixe em branco para manter)</span>}
+                      </Label>
+                      <div className="relative">
+                        <Input
+                          type={profShowSenha ? 'text' : 'password'}
+                          value={profForm.senha}
+                          onChange={e => { setProfForm(f => ({ ...f, senha: e.target.value })); setProfFormError(''); }}
+                          placeholder="Mínimo 8 caracteres"
+                          className="pr-10"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setProfShowSenha(v => !v)}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                        >
+                          {profShowSenha ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        </button>
+                      </div>
+                      <p className="text-[11px] text-muted-foreground mt-1">Cria o acesso de login do professor (perfil Professor).</p>
+                    </div>
                   </div>
                   <div className="px-6 py-4 border-t flex justify-end gap-2 bg-muted/30">
                     <Button variant="outline" onClick={() => setProfModal({ open: false, editId: null })}>Cancelar</Button>
@@ -2413,8 +2579,6 @@ function AppShell({ currentUser, onLogout }: { currentUser: SessaoUsuario; onLog
               </motion.div>
             )}
           </AnimatePresence>
-
-          {/* Disciplina Modal */}
           <AnimatePresence>
             {discModal.open && (
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/40 backdrop-blur-[2px] flex items-center justify-center z-50 p-4">
@@ -2450,7 +2614,7 @@ function AppShell({ currentUser, onLogout }: { currentUser: SessaoUsuario; onLog
                         value={discForm.cursoId}
                         onChange={e => setDiscForm(f => ({ ...f, cursoId: Number(e.target.value) }))}
                       >
-                        {MOCK_CURSOS.map(c => <option key={c.id} value={c.id}>{c.sigla} — {c.nome}</option>)}
+                        {cursos.map(c => <option key={c.id} value={c.id}>{c.sigla} — {c.nome}</option>)}
                       </select>
                     </div>
                     <div>
@@ -2473,8 +2637,6 @@ function AppShell({ currentUser, onLogout }: { currentUser: SessaoUsuario; onLog
               </motion.div>
             )}
           </AnimatePresence>
-
-          {/* Turma Modal */}
           <AnimatePresence>
             {turmaModal.open && (
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/40 backdrop-blur-[2px] flex items-center justify-center z-50 p-4">
@@ -2510,7 +2672,7 @@ function AppShell({ currentUser, onLogout }: { currentUser: SessaoUsuario; onLog
                         value={turmaForm.cursoId}
                         onChange={e => setTurmaForm(f => ({ ...f, cursoId: Number(e.target.value) }))}
                       >
-                        {MOCK_CURSOS.map(c => <option key={c.id} value={c.id}>{c.sigla} — {c.nome}</option>)}
+                        {cursos.map(c => <option key={c.id} value={c.id}>{c.sigla} — {c.nome}</option>)}
                       </select>
                     </div>
                     <div>
@@ -2534,8 +2696,6 @@ function AppShell({ currentUser, onLogout }: { currentUser: SessaoUsuario; onLog
               </motion.div>
             )}
           </AnimatePresence>
-
-          {/* Coordenador Modal */}
           <AnimatePresence>
             {coordModal.open && (
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/40 backdrop-blur-[2px] flex items-center justify-center z-50 p-4">
@@ -2587,25 +2747,74 @@ function AppShell({ currentUser, onLogout }: { currentUser: SessaoUsuario; onLog
                       </div>
                     </div>
                     <div>
-                      <Label className="text-xs mb-1.5 block">Departamento / Curso</Label>
-                      <Input value={coordForm.departamento} onChange={e => setCoordForm(f => ({ ...f, departamento: e.target.value }))} placeholder="Ex.: Análise e Desenvolvimento de Sistemas" />
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <button
-                        type="button"
-                        onClick={() => setCoordForm(f => ({ ...f, ativo: !f.ativo }))}
-                        className={cn('relative w-10 h-5 rounded-full transition-colors shrink-0', coordForm.ativo ? 'bg-primary' : 'bg-muted')}
+                      <Label className="text-xs mb-1.5 block">Curso</Label>
+                      <select
+                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        value={coordForm.cursoId}
+                        onChange={e => setCoordForm(f => ({ ...f, cursoId: Number(e.target.value) }))}
                       >
-                        <span className={cn('absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform', coordForm.ativo ? 'translate-x-5' : 'translate-x-0.5')} />
-                      </button>
-                      <Label className="text-xs cursor-pointer" onClick={() => setCoordForm(f => ({ ...f, ativo: !f.ativo }))}>
-                        Conta {coordForm.ativo ? 'ativa' : 'inativa'}
-                      </Label>
+                        {cursos.map(c => <option key={c.id} value={c.id}>{c.sigla} — {c.nome}</option>)}
+                      </select>
                     </div>
                   </div>
                   <div className="px-6 py-4 border-t flex justify-end gap-2 bg-muted/30">
                     <Button variant="outline" onClick={() => setCoordModal({ open: false, editId: null })}>Cancelar</Button>
                     <Button onClick={saveCoord}><Check className="mr-2 h-4 w-4" />{coordModal.editId !== null ? 'Salvar alterações' : 'Criar coordenador'}</Button>
+                  </div>
+                </motion.div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+          <AnimatePresence>
+            {semModal.open && (
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/40 backdrop-blur-[2px] flex items-center justify-center z-50 p-4">
+                <motion.div initial={{ scale: 0.95, y: 12 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.95, y: 12 }} className="bg-background rounded-xl shadow-2xl w-full max-w-md overflow-hidden border">
+                  <div className="flex items-center justify-between px-6 py-4 border-b">
+                    <div>
+                      <h3 className="font-semibold text-base">{semModal.editId !== null ? 'Editar semestre' : 'Novo semestre'}</h3>
+                      <p className="text-xs text-muted-foreground mt-0.5">{semModal.editId !== null ? 'Altere os dados do semestre letivo.' : 'Preencha os dados para cadastrar.'}</p>
+                    </div>
+                    <Button variant="ghost" size="icon" onClick={() => setSemModal({ open: false, editId: null })}>
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  <div className="p-6 space-y-4">
+                    {semFormError && (
+                      <div className="flex items-center gap-2 px-3 py-2.5 bg-destructive/10 border border-destructive/20 rounded-lg">
+                        <AlertCircle className="h-4 w-4 text-destructive shrink-0" />
+                        <p className="text-xs text-destructive">{semFormError}</p>
+                      </div>
+                    )}
+                    <div>
+                      <Label className="text-xs mb-1.5 block">Nome / Período <span className="text-destructive">*</span></Label>
+                      <Input value={semForm.nome} onChange={e => { setSemForm(f => ({ ...f, nome: e.target.value })); setSemFormError(''); }} placeholder="Ex.: 2024.2" />
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <Label className="text-xs mb-1.5 block">Início <span className="text-destructive">*</span></Label>
+                        <DatePicker value={semForm.dataInicio} onChange={v => { setSemForm(f => ({ ...f, dataInicio: v })); setSemFormError(''); }} placeholder="Início" />
+                      </div>
+                      <div>
+                        <Label className="text-xs mb-1.5 block">Término <span className="text-destructive">*</span></Label>
+                        <DatePicker value={semForm.dataTermino} onChange={v => { setSemForm(f => ({ ...f, dataTermino: v })); setSemFormError(''); }} placeholder="Término" min={semForm.dataInicio || undefined} />
+                      </div>
+                    </div>
+                    <div>
+                      <Label className="text-xs mb-1.5 block">Etapa</Label>
+                      <select
+                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        value={semForm.statusEtapa}
+                        onChange={e => setSemForm(f => ({ ...f, statusEtapa: e.target.value as StatusEtapa }))}
+                      >
+                        {(['OFERTAS', 'RESTRICOES', 'SIMULACAO', 'CONCLUIDO'] as StatusEtapa[]).map(et => (
+                          <option key={et} value={et}>{ETAPA_LABELS[et]}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                  <div className="px-6 py-4 border-t flex justify-end gap-2 bg-muted/30">
+                    <Button variant="outline" onClick={() => setSemModal({ open: false, editId: null })}>Cancelar</Button>
+                    <Button onClick={saveSem}><Check className="mr-2 h-4 w-4" />{semModal.editId !== null ? 'Salvar alterações' : 'Cadastrar'}</Button>
                   </div>
                 </motion.div>
               </motion.div>

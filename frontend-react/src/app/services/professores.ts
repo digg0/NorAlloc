@@ -2,7 +2,6 @@ import { apiFetch } from './api';
 
 export type RegimeTrabalho = 'DE' | '40H' | '20H';
 
-// Formato vindo do backend (snake_case).
 interface ProfessorBackend {
   id: number;
   nome: string;
@@ -12,7 +11,6 @@ interface ProfessorBackend {
   carga_maxima: number | null;
 }
 
-// Formato usado na UI (igual ao type Professor do App.tsx).
 export interface ProfessorUI {
   id: number;
   nome: string;
@@ -26,9 +24,9 @@ export interface ProfessorFormData {
   email: string;
   regimeTrabalho: RegimeTrabalho;
   areaAtuacao: string;
+  senha: string; // cria/atualiza a conta de login (só enviado quando preenchido)
 }
 
-// Carga horária máxima derivada do regime (backend aceita opcional).
 const CARGA_POR_REGIME: Record<RegimeTrabalho, number> = {
   DE: 20,
   '40H': 40,
@@ -46,13 +44,15 @@ function paraUI(p: ProfessorBackend): ProfessorUI {
 }
 
 function paraBackend(f: ProfessorFormData) {
-  return {
+  const body: Record<string, unknown> = {
     nome: f.nome,
     email: f.email,
     regime_trabalho: f.regimeTrabalho,
     area: f.areaAtuacao || null,
     carga_maxima: CARGA_POR_REGIME[f.regimeTrabalho],
   };
+  if (f.senha && f.senha.trim()) body.password = f.senha;
+  return body;
 }
 
 export async function listarProfessores(): Promise<ProfessorUI[]> {

@@ -15,7 +15,6 @@ interface LoginBackendResponse {
   usuario: UsuarioBackend;
 }
 
-// Sessão usada pelo App (campos já no formato que o frontend espera).
 export interface SessaoUsuario {
   id: number;
   name: string;
