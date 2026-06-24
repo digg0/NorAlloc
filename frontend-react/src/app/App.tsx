@@ -13,6 +13,9 @@ import { twMerge } from 'tailwind-merge';
 import { login as apiLogin, logout as apiLogout, getSessao, type SessaoUsuario } from './services/auth';
 import { listarProfessores, criarProfessor, atualizarProfessor, removerProfessor } from './services/professores';
 import { getResumoGeral, getResumoProfessor, type ResumoGeral, type ResumoProfessor } from './services/dashboard';
+import { CursosView } from './components/CursosView';
+import { TurmasView } from './components/TurmasView';
+import { DisciplinasView } from './components/DisciplinasView';
 import { OfertasView } from './components/OfertasView';
 import { DisponibilidadeTurmaView } from './components/DisponibilidadeTurmaView';
 import { GradeView } from './components/GradeView';
@@ -365,7 +368,7 @@ function TimeSlotGrid({ blocked, onChange }: TimeSlotGridProps) {
 
 // ── Main App ───────────────────────────────────────────────────────────────────
 
-type View = 'dashboard' | 'wizard' | 'professores' | 'disciplinas' | 'semestres' | 'turmas' | 'coordenadores' | 'perfil' | 'minha-agenda' | 'minha-disponibilidade' | 'disciplinas-preferidas' | 'ofertas' | 'disponibilidade-turma' | 'grade' | 'alertas' | 'relatorios';
+type View = 'dashboard' | 'wizard' | 'professores' | 'disciplinas' | 'semestres' | 'turmas' | 'coordenadores' | 'perfil' | 'minha-agenda' | 'minha-disponibilidade' | 'disciplinas-preferidas' | 'cursos' | 'ofertas' | 'disponibilidade-turma' | 'grade' | 'alertas' | 'relatorios';
 
 type WizardData = {
   nome: string;
@@ -761,8 +764,6 @@ function AppShell({ currentUser, onLogout }: { currentUser: SessaoUsuario; onLog
 
   // ── Search state per view ─────────────────────────────────────────────────
   const [profSearch, setProfSearch] = useState('');
-  const [discSearch, setDiscSearch] = useState('');
-  const [turmaSearch, setTurmaSearch] = useState('');
   const [coordSearch, setCoordSearch] = useState('');
 
   // ── Professor CRUD ────────────────────────────────────────────────────────
@@ -798,45 +799,10 @@ function AppShell({ currentUser, onLogout }: { currentUser: SessaoUsuario; onLog
     }
   };
 
-  // ── Disciplina CRUD ───────────────────────────────────────────────────────
-  type DiscForm = Omit<Disciplina, 'id'>;
-  const emptyDiscForm: DiscForm = { nome: '', sigla: '', cargaHorariaCreditos: 3, cursoId: 1 };
-  const [discModal, setDiscModal] = useState<{ open: boolean; editId: number | null }>({ open: false, editId: null });
-  const [discForm, setDiscForm] = useState<DiscForm>(emptyDiscForm);
-  const [discFormError, setDiscFormError] = useState('');
-
-  const openDiscAdd = () => { setDiscForm(emptyDiscForm); setDiscFormError(''); setDiscModal({ open: true, editId: null }); };
-  const openDiscEdit = (d: Disciplina) => { setDiscForm({ nome: d.nome, sigla: d.sigla, cargaHorariaCreditos: d.cargaHorariaCreditos, cursoId: d.cursoId }); setDiscFormError(''); setDiscModal({ open: true, editId: d.id }); };
-  const saveDisc = () => {
-    if (!discForm.nome.trim() || !discForm.sigla.trim()) { setDiscFormError('Nome e sigla são obrigatórios.'); return; }
-    if (discModal.editId !== null) {
-      setDisciplinas(ds => ds.map(d => d.id === discModal.editId ? { ...d, ...discForm } : d));
-    } else {
-      setDisciplinas(ds => [...ds, { id: Math.max(0, ...ds.map(d => d.id)) + 1, ...discForm }]);
-    }
-    setDiscModal({ open: false, editId: null });
-  };
-  const deleteDisc = (id: number) => setDisciplinas(ds => ds.filter(d => d.id !== id));
-
-  // ── Turma CRUD ────────────────────────────────────────────────────────────
-  type TurmaForm = Omit<Turma, 'id'>;
-  const emptyTurmaForm: TurmaForm = { codigo: '', nome: '', turno: 'Manhã', cursoId: 1 };
-  const [turmaModal, setTurmaModal] = useState<{ open: boolean; editId: number | null }>({ open: false, editId: null });
-  const [turmaForm, setTurmaForm] = useState<TurmaForm>(emptyTurmaForm);
-  const [turmaFormError, setTurmaFormError] = useState('');
-
-  const openTurmaAdd = () => { setTurmaForm(emptyTurmaForm); setTurmaFormError(''); setTurmaModal({ open: true, editId: null }); };
-  const openTurmaEdit = (t: Turma) => { setTurmaForm({ codigo: t.codigo, nome: t.nome, turno: t.turno, cursoId: t.cursoId }); setTurmaFormError(''); setTurmaModal({ open: true, editId: t.id }); };
-  const saveTurma = () => {
-    if (!turmaForm.nome.trim() || !turmaForm.codigo.trim()) { setTurmaFormError('Código e nome são obrigatórios.'); return; }
-    if (turmaModal.editId !== null) {
-      setTurmas(ts => ts.map(t => t.id === turmaModal.editId ? { ...t, ...turmaForm } : t));
-    } else {
-      setTurmas(ts => [...ts, { id: Math.max(0, ...ts.map(t => t.id)) + 1, ...turmaForm }]);
-    }
-    setTurmaModal({ open: false, editId: null });
-  };
-  const deleteTurma = (id: number) => setTurmas(ts => ts.filter(t => t.id !== id));
+  // Observação: as telas de Disciplinas e Turmas (CRUD real, via backend) são
+  // os componentes DisciplinasView/TurmasView. Os arrays `disciplinas`/`turmas`
+  // mock acima continuam servindo apenas o passo "Ofertas" do wizard legado
+  // (seção "Nova Simulação"), que ainda não foi integrado ao backend.
 
   // ── Coordenadores CRUD (admin only) ───────────────────────────────────────
   const [coordenadores, setCoordenadores] = useState<Coordenador[]>(MOCK_COORDENADORES_INICIAL);
@@ -918,6 +884,7 @@ function AppShell({ currentUser, onLogout }: { currentUser: SessaoUsuario; onLog
 
   const adminNavItems: { view: View; label: string; icon: React.ReactNode }[] = [
     { view: 'dashboard',     label: 'Dashboard',     icon: <LayoutDashboard className="mr-2 h-4 w-4" /> },
+    { view: 'cursos',        label: 'Cursos',        icon: <GraduationCap   className="mr-2 h-4 w-4" /> },
     { view: 'coordenadores', label: 'Coordenadores', icon: <ShieldAlert     className="mr-2 h-4 w-4" /> },
     { view: 'professores',   label: 'Professores',   icon: <Users           className="mr-2 h-4 w-4" /> },
     { view: 'disciplinas',   label: 'Disciplinas',   icon: <BookOpen        className="mr-2 h-4 w-4" /> },
@@ -959,6 +926,7 @@ function AppShell({ currentUser, onLogout }: { currentUser: SessaoUsuario; onLog
     'minha-agenda':           'Minha Agenda',
     'minha-disponibilidade':  'Minha Disponibilidade',
     'disciplinas-preferidas': 'Disciplinas Preferidas',
+    cursos:                   'Cursos',
     ofertas:                  'Ofertas de Disciplina',
     'disponibilidade-turma':  'Disponibilidade de Turmas',
     grade:                    'Grade Horária',
@@ -1684,139 +1652,36 @@ function AppShell({ currentUser, onLogout }: { currentUser: SessaoUsuario; onLog
             </motion.div>
           )}
 
+          {/* ── CURSOS ─────────────────────────────────────────────────── */}
+          {currentView === 'cursos' && isAdmin && (
+            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6 max-w-6xl mx-auto">
+              <div>
+                <h2 className="text-2xl font-bold tracking-tight">Cursos</h2>
+                <p className="text-muted-foreground">Cadastro de cursos institucionais — apenas o Administrador pode criar, editar e inativar.</p>
+              </div>
+              <CursosView />
+            </motion.div>
+          )}
+
           {/* ── DISCIPLINAS ────────────────────────────────────────────── */}
           {currentView === 'disciplinas' && (
             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6 max-w-6xl mx-auto">
-              <div className="flex items-center justify-between gap-4 flex-wrap">
-                <div>
-                  <h2 className="text-2xl font-bold tracking-tight">Disciplinas</h2>
-                  <p className="text-muted-foreground">Matriz curricular. Carga em créditos (1 crédito = 50 min).</p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="relative">
-                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      type="search"
-                      placeholder="Buscar disciplina..."
-                      className="pl-8 h-9 w-56"
-                      value={discSearch}
-                      onChange={e => setDiscSearch(e.target.value)}
-                    />
-                  </div>
-                  <Button onClick={openDiscAdd}>
-                    <Plus className="mr-2 h-4 w-4" />Nova Disciplina
-                  </Button>
-                </div>
+              <div>
+                <h2 className="text-2xl font-bold tracking-tight">Disciplinas</h2>
+                <p className="text-muted-foreground">Matriz curricular por curso.</p>
               </div>
-              <Card>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Sigla</TableHead>
-                      <TableHead>Nome</TableHead>
-                      <TableHead>Curso</TableHead>
-                      <TableHead>Créditos</TableHead>
-                      <TableHead className="text-right">Ações</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {disciplinas
-                      .filter(d => !discSearch || d.nome.toLowerCase().includes(discSearch.toLowerCase()) || d.sigla.toLowerCase().includes(discSearch.toLowerCase()))
-                      .map(disc => {
-                        const curso = MOCK_CURSOS.find(c => c.id === disc.cursoId);
-                        return (
-                          <TableRow key={disc.id}>
-                            <TableCell><Badge variant="secondary">{disc.sigla}</Badge></TableCell>
-                            <TableCell className="font-medium">{disc.nome}</TableCell>
-                            <TableCell className="text-muted-foreground">{curso?.sigla ?? '—'}</TableCell>
-                            <TableCell>{disc.cargaHorariaCreditos} crédito{disc.cargaHorariaCreditos !== 1 ? 's' : ''}</TableCell>
-                            <TableCell className="text-right">
-                              <Button variant="ghost" size="icon" onClick={() => openDiscEdit(disc)}>
-                                <Edit className="h-4 w-4" />
-                              </Button>
-                              <Button variant="ghost" size="icon" className="text-destructive" onClick={() => deleteDisc(disc.id)}>
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })}
-                    {disciplinas.filter(d => !discSearch || d.nome.toLowerCase().includes(discSearch.toLowerCase()) || d.sigla.toLowerCase().includes(discSearch.toLowerCase())).length === 0 && (
-                      <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-8">Nenhuma disciplina encontrada.</TableCell></TableRow>
-                    )}
-                  </TableBody>
-                </Table>
-              </Card>
+              <DisciplinasView />
             </motion.div>
           )}
 
           {/* ── TURMAS ─────────────────────────────────────────────────── */}
           {currentView === 'turmas' && (
             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6 max-w-6xl mx-auto">
-              <div className="flex items-center justify-between gap-4 flex-wrap">
-                <div>
-                  <h2 className="text-2xl font-bold tracking-tight">Turmas</h2>
-                  <p className="text-muted-foreground">Grupos de alunos por curso e turno.</p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="relative">
-                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      type="search"
-                      placeholder="Buscar turma..."
-                      className="pl-8 h-9 w-56"
-                      value={turmaSearch}
-                      onChange={e => setTurmaSearch(e.target.value)}
-                    />
-                  </div>
-                  <Button onClick={openTurmaAdd}>
-                    <Plus className="mr-2 h-4 w-4" />Nova Turma
-                  </Button>
-                </div>
+              <div>
+                <h2 className="text-2xl font-bold tracking-tight">Turmas</h2>
+                <p className="text-muted-foreground">Turmas por curso e semestre.</p>
               </div>
-              <Card>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Código</TableHead>
-                      <TableHead>Nome</TableHead>
-                      <TableHead>Curso</TableHead>
-                      <TableHead>Turno</TableHead>
-                      <TableHead className="text-right">Ações</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {turmas
-                      .filter(t => !turmaSearch || t.nome.toLowerCase().includes(turmaSearch.toLowerCase()) || t.codigo.toLowerCase().includes(turmaSearch.toLowerCase()))
-                      .map(turma => {
-                        const curso = MOCK_CURSOS.find(c => c.id === turma.cursoId);
-                        return (
-                          <TableRow key={turma.id}>
-                            <TableCell><code className="text-xs bg-muted px-1.5 py-0.5 rounded">{turma.codigo}</code></TableCell>
-                            <TableCell className="font-medium">{turma.nome}</TableCell>
-                            <TableCell className="text-muted-foreground">{curso?.sigla ?? '—'}</TableCell>
-                            <TableCell>
-                              <Badge variant={turma.turno === 'Manhã' ? 'default' : turma.turno === 'Tarde' ? 'warning' : 'secondary'}>
-                                {turma.turno}
-                              </Badge>
-                            </TableCell>
-                            <TableCell className="text-right">
-                              <Button variant="ghost" size="icon" onClick={() => openTurmaEdit(turma)}>
-                                <Edit className="h-4 w-4" />
-                              </Button>
-                              <Button variant="ghost" size="icon" className="text-destructive" onClick={() => deleteTurma(turma.id)}>
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })}
-                    {turmas.filter(t => !turmaSearch || t.nome.toLowerCase().includes(turmaSearch.toLowerCase()) || t.codigo.toLowerCase().includes(turmaSearch.toLowerCase())).length === 0 && (
-                      <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-8">Nenhuma turma encontrada.</TableCell></TableRow>
-                    )}
-                  </TableBody>
-                </Table>
-              </Card>
+              <TurmasView />
             </motion.div>
           )}
 
@@ -2479,127 +2344,6 @@ function AppShell({ currentUser, onLogout }: { currentUser: SessaoUsuario; onLog
                   <div className="px-6 py-4 border-t flex justify-end gap-2 bg-muted/30">
                     <Button variant="outline" onClick={() => setProfModal({ open: false, editId: null })}>Cancelar</Button>
                     <Button onClick={saveProf}><Check className="mr-2 h-4 w-4" />{profModal.editId !== null ? 'Salvar alterações' : 'Cadastrar'}</Button>
-                  </div>
-                </motion.div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-
-          {/* Disciplina Modal */}
-          <AnimatePresence>
-            {discModal.open && (
-              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/40 backdrop-blur-[2px] flex items-center justify-center z-50 p-4">
-                <motion.div initial={{ scale: 0.95, y: 12 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.95, y: 12 }} className="bg-background rounded-xl shadow-2xl w-full max-w-md overflow-hidden border">
-                  <div className="flex items-center justify-between px-6 py-4 border-b">
-                    <div>
-                      <h3 className="font-semibold text-base">{discModal.editId !== null ? 'Editar disciplina' : 'Nova disciplina'}</h3>
-                      <p className="text-xs text-muted-foreground mt-0.5">{discModal.editId !== null ? 'Altere os dados da disciplina.' : 'Preencha os dados para cadastrar.'}</p>
-                    </div>
-                    <Button variant="ghost" size="icon" onClick={() => setDiscModal({ open: false, editId: null })}>
-                      <X className="h-4 w-4" />
-                    </Button>
-                  </div>
-                  <div className="p-6 space-y-4">
-                    {discFormError && (
-                      <div className="flex items-center gap-2 px-3 py-2.5 bg-destructive/10 border border-destructive/20 rounded-lg">
-                        <AlertCircle className="h-4 w-4 text-destructive shrink-0" />
-                        <p className="text-xs text-destructive">{discFormError}</p>
-                      </div>
-                    )}
-                    <div>
-                      <Label className="text-xs mb-1.5 block">Nome da disciplina <span className="text-destructive">*</span></Label>
-                      <Input value={discForm.nome} onChange={e => { setDiscForm(f => ({ ...f, nome: e.target.value })); setDiscFormError(''); }} placeholder="Ex.: Algoritmos e Estrutura de Dados" />
-                    </div>
-                    <div>
-                      <Label className="text-xs mb-1.5 block">Sigla <span className="text-destructive">*</span></Label>
-                      <Input value={discForm.sigla} onChange={e => { setDiscForm(f => ({ ...f, sigla: e.target.value.toUpperCase() })); setDiscFormError(''); }} placeholder="Ex.: AED" className="uppercase" />
-                    </div>
-                    <div>
-                      <Label className="text-xs mb-1.5 block">Curso</Label>
-                      <select
-                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                        value={discForm.cursoId}
-                        onChange={e => setDiscForm(f => ({ ...f, cursoId: Number(e.target.value) }))}
-                      >
-                        {MOCK_CURSOS.map(c => <option key={c.id} value={c.id}>{c.sigla} — {c.nome}</option>)}
-                      </select>
-                    </div>
-                    <div>
-                      <Label className="text-xs mb-1.5 block">Créditos</Label>
-                      <Input
-                        type="number"
-                        min={1}
-                        max={10}
-                        value={discForm.cargaHorariaCreditos}
-                        onChange={e => setDiscForm(f => ({ ...f, cargaHorariaCreditos: Number(e.target.value) }))}
-                        className="w-32"
-                      />
-                    </div>
-                  </div>
-                  <div className="px-6 py-4 border-t flex justify-end gap-2 bg-muted/30">
-                    <Button variant="outline" onClick={() => setDiscModal({ open: false, editId: null })}>Cancelar</Button>
-                    <Button onClick={saveDisc}><Check className="mr-2 h-4 w-4" />{discModal.editId !== null ? 'Salvar alterações' : 'Cadastrar'}</Button>
-                  </div>
-                </motion.div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-
-          {/* Turma Modal */}
-          <AnimatePresence>
-            {turmaModal.open && (
-              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/40 backdrop-blur-[2px] flex items-center justify-center z-50 p-4">
-                <motion.div initial={{ scale: 0.95, y: 12 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.95, y: 12 }} className="bg-background rounded-xl shadow-2xl w-full max-w-md overflow-hidden border">
-                  <div className="flex items-center justify-between px-6 py-4 border-b">
-                    <div>
-                      <h3 className="font-semibold text-base">{turmaModal.editId !== null ? 'Editar turma' : 'Nova turma'}</h3>
-                      <p className="text-xs text-muted-foreground mt-0.5">{turmaModal.editId !== null ? 'Altere os dados da turma.' : 'Preencha os dados para cadastrar.'}</p>
-                    </div>
-                    <Button variant="ghost" size="icon" onClick={() => setTurmaModal({ open: false, editId: null })}>
-                      <X className="h-4 w-4" />
-                    </Button>
-                  </div>
-                  <div className="p-6 space-y-4">
-                    {turmaFormError && (
-                      <div className="flex items-center gap-2 px-3 py-2.5 bg-destructive/10 border border-destructive/20 rounded-lg">
-                        <AlertCircle className="h-4 w-4 text-destructive shrink-0" />
-                        <p className="text-xs text-destructive">{turmaFormError}</p>
-                      </div>
-                    )}
-                    <div>
-                      <Label className="text-xs mb-1.5 block">Código <span className="text-destructive">*</span></Label>
-                      <Input value={turmaForm.codigo} onChange={e => { setTurmaForm(f => ({ ...f, codigo: e.target.value })); setTurmaFormError(''); }} placeholder="Ex.: ADS_2024.2_MAT" />
-                    </div>
-                    <div>
-                      <Label className="text-xs mb-1.5 block">Nome da turma <span className="text-destructive">*</span></Label>
-                      <Input value={turmaForm.nome} onChange={e => { setTurmaForm(f => ({ ...f, nome: e.target.value })); setTurmaFormError(''); }} placeholder="Ex.: ADS 2024.2 (Manhã)" />
-                    </div>
-                    <div>
-                      <Label className="text-xs mb-1.5 block">Curso</Label>
-                      <select
-                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                        value={turmaForm.cursoId}
-                        onChange={e => setTurmaForm(f => ({ ...f, cursoId: Number(e.target.value) }))}
-                      >
-                        {MOCK_CURSOS.map(c => <option key={c.id} value={c.id}>{c.sigla} — {c.nome}</option>)}
-                      </select>
-                    </div>
-                    <div>
-                      <Label className="text-xs mb-1.5 block">Turno</Label>
-                      <select
-                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                        value={turmaForm.turno}
-                        onChange={e => setTurmaForm(f => ({ ...f, turno: e.target.value as Turno }))}
-                      >
-                        <option value="Manhã">Manhã</option>
-                        <option value="Tarde">Tarde</option>
-                        <option value="Noite">Noite</option>
-                      </select>
-                    </div>
-                  </div>
-                  <div className="px-6 py-4 border-t flex justify-end gap-2 bg-muted/30">
-                    <Button variant="outline" onClick={() => setTurmaModal({ open: false, editId: null })}>Cancelar</Button>
-                    <Button onClick={saveTurma}><Check className="mr-2 h-4 w-4" />{turmaModal.editId !== null ? 'Salvar alterações' : 'Cadastrar'}</Button>
                   </div>
                 </motion.div>
               </motion.div>
