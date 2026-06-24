@@ -26,6 +26,7 @@ export interface ProfessorFormData {
   email: string;
   regimeTrabalho: RegimeTrabalho;
   areaAtuacao: string;
+  senha: string; // cria/atualiza a conta de login (só enviado quando preenchido)
 }
 
 // Carga horária máxima derivada do regime (backend aceita opcional).
@@ -46,13 +47,16 @@ function paraUI(p: ProfessorBackend): ProfessorUI {
 }
 
 function paraBackend(f: ProfessorFormData) {
-  return {
+  const body: Record<string, unknown> = {
     nome: f.nome,
     email: f.email,
     regime_trabalho: f.regimeTrabalho,
     area: f.areaAtuacao || null,
     carga_maxima: CARGA_POR_REGIME[f.regimeTrabalho],
   };
+  // Só envia a senha quando preenchida (na edição, em branco = mantém a atual).
+  if (f.senha && f.senha.trim()) body.password = f.senha;
+  return body;
 }
 
 export async function listarProfessores(): Promise<ProfessorUI[]> {
