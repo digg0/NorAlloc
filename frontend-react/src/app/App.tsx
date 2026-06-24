@@ -13,6 +13,11 @@ import { twMerge } from 'tailwind-merge';
 import { login as apiLogin, logout as apiLogout, getSessao, type SessaoUsuario } from './services/auth';
 import { listarProfessores, criarProfessor, atualizarProfessor, removerProfessor } from './services/professores';
 import { getResumoGeral, getResumoProfessor, type ResumoGeral, type ResumoProfessor } from './services/dashboard';
+import { listarCursos } from './services/cursos';
+import { listarDisciplinas, criarDisciplina, atualizarDisciplina, removerDisciplina } from './services/disciplinas';
+import { listarTurmas, criarTurma, atualizarTurma, removerTurma } from './services/turmas';
+import { listarCoordenadores, criarCoordenador, atualizarCoordenador, removerCoordenador } from './services/coordenadores';
+import { listarSemestres, criarSemestre, atualizarSemestre, removerSemestre } from './services/semestres';
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -183,7 +188,7 @@ type Curso = { id: number; sigla: string; nome: string };
 type Turma = { id: number; codigo: string; nome: string; turno: Turno; cursoId: number };
 type Disciplina = { id: number; nome: string; sigla: string; cargaHorariaCreditos: number; cursoId: number };
 type Professor = { id: number; nome: string; email: string; regimeTrabalho: RegimeTrabalho; areaAtuacao: string };
-type Coordenador = { id: number; nome: string; email: string; senha: string; departamento: string; ativo: boolean };
+type Coordenador = { id: number; nome: string; email: string; senha?: string; cursoId: number; ativo: boolean };
 type Semestre = { id: number; nome: string; dataInicio: string; dataTermino: string; statusEtapa: StatusEtapa };
 type Oferta = { turmaId: number; disciplinaId: number };
 type Restricao = { professorId: number; horariosBloqueados: string[]; limiteCargaHoraria?: number };
@@ -222,9 +227,9 @@ const MOCK_DISCIPLINAS: Disciplina[] = [
 ];
 
 const MOCK_COORDENADORES_INICIAL: Coordenador[] = [
-  { id: 1, nome: 'Saulo Anderson', email: 'saulo.anderson@ifce.edu.br', senha: '123456', departamento: 'Análise e Desenvolvimento de Sistemas', ativo: true },
-  { id: 2, nome: 'Marcos Freitas', email: 'marcos.freitas@ifce.edu.br', senha: 'coord01', departamento: 'Redes de Computadores', ativo: true },
-  { id: 3, nome: 'Carla Mendes', email: 'carla.mendes@ifce.edu.br', senha: 'coord02', departamento: 'Agropecuária', ativo: false },
+  { id: 1, nome: 'Saulo Anderson', email: 'saulo.anderson@ifce.edu.br', senha: '123456', cursoId: 1, ativo: true },
+  { id: 2, nome: 'Marcos Freitas', email: 'marcos.freitas@ifce.edu.br', senha: 'coord01', cursoId: 4, ativo: true },
+  { id: 3, nome: 'Carla Mendes', email: 'carla.mendes@ifce.edu.br', senha: 'coord02', cursoId: 3, ativo: false },
 ];
 
 const MOCK_SEMESTRES: Semestre[] = [
@@ -753,6 +758,18 @@ function AppShell({ currentUser, onLogout }: { currentUser: SessaoUsuario; onLog
   }, [isProf]);
   const [disciplinas, setDisciplinas] = useState<Disciplina[]>([...MOCK_DISCIPLINAS]);
   const [turmas, setTurmas] = useState<Turma[]>([...MOCK_TURMAS]);
+  // Cursos e semestres reais do backend (caem para o mock se estiver offline).
+  const [cursos, setCursos] = useState<Curso[]>([...MOCK_CURSOS]);
+  const [semestres, setSemestres] = useState<Semestre[]>([...MOCK_SEMESTRES]);
+
+  // Carrega os cadastros-base reais ao montar. Cada chamada cai silenciosamente
+  // para os dados de exemplo se o backend estiver indisponível.
+  useEffect(() => {
+    listarCursos().then(setCursos).catch(() => {});
+    listarDisciplinas().then(setDisciplinas).catch(() => {});
+    listarTurmas().then(setTurmas).catch(() => {});
+    listarSemestres().then(setSemestres).catch(() => {});
+  }, []);
 
   // ── Search state per view ─────────────────────────────────────────────────
   const [profSearch, setProfSearch] = useState('');
@@ -800,18 +817,31 @@ function AppShell({ currentUser, onLogout }: { currentUser: SessaoUsuario; onLog
   const [discForm, setDiscForm] = useState<DiscForm>(emptyDiscForm);
   const [discFormError, setDiscFormError] = useState('');
 
-  const openDiscAdd = () => { setDiscForm(emptyDiscForm); setDiscFormError(''); setDiscModal({ open: true, editId: null }); };
+  const openDiscAdd = () => { setDiscForm({ ...emptyDiscForm, cursoId: cursos[0]?.id ?? 1 }); setDiscFormError(''); setDiscModal({ open: true, editId: null }); };
   const openDiscEdit = (d: Disciplina) => { setDiscForm({ nome: d.nome, sigla: d.sigla, cargaHorariaCreditos: d.cargaHorariaCreditos, cursoId: d.cursoId }); setDiscFormError(''); setDiscModal({ open: true, editId: d.id }); };
-  const saveDisc = () => {
+  const saveDisc = async () => {
     if (!discForm.nome.trim() || !discForm.sigla.trim()) { setDiscFormError('Nome e sigla são obrigatórios.'); return; }
-    if (discModal.editId !== null) {
-      setDisciplinas(ds => ds.map(d => d.id === discModal.editId ? { ...d, ...discForm } : d));
-    } else {
-      setDisciplinas(ds => [...ds, { id: Math.max(0, ...ds.map(d => d.id)) + 1, ...discForm }]);
+    try {
+      if (discModal.editId !== null) {
+        const atualizada = await atualizarDisciplina(discModal.editId, discForm);
+        setDisciplinas(ds => ds.map(d => d.id === discModal.editId ? atualizada : d));
+      } else {
+        const nova = await criarDisciplina(discForm);
+        setDisciplinas(ds => [...ds, nova]);
+      }
+      setDiscModal({ open: false, editId: null });
+    } catch (err: any) {
+      setDiscFormError(err?.message || 'Erro ao salvar disciplina.');
     }
-    setDiscModal({ open: false, editId: null });
   };
-  const deleteDisc = (id: number) => setDisciplinas(ds => ds.filter(d => d.id !== id));
+  const deleteDisc = async (id: number) => {
+    try {
+      await removerDisciplina(id);
+      setDisciplinas(ds => ds.filter(d => d.id !== id));
+    } catch (err) {
+      console.error('Falha ao remover disciplina:', err);
+    }
+  };
 
   // ── Turma CRUD ────────────────────────────────────────────────────────────
   type TurmaForm = Omit<Turma, 'id'>;
@@ -820,40 +850,107 @@ function AppShell({ currentUser, onLogout }: { currentUser: SessaoUsuario; onLog
   const [turmaForm, setTurmaForm] = useState<TurmaForm>(emptyTurmaForm);
   const [turmaFormError, setTurmaFormError] = useState('');
 
-  const openTurmaAdd = () => { setTurmaForm(emptyTurmaForm); setTurmaFormError(''); setTurmaModal({ open: true, editId: null }); };
+  const openTurmaAdd = () => { setTurmaForm({ ...emptyTurmaForm, cursoId: cursos[0]?.id ?? 1 }); setTurmaFormError(''); setTurmaModal({ open: true, editId: null }); };
   const openTurmaEdit = (t: Turma) => { setTurmaForm({ codigo: t.codigo, nome: t.nome, turno: t.turno, cursoId: t.cursoId }); setTurmaFormError(''); setTurmaModal({ open: true, editId: t.id }); };
-  const saveTurma = () => {
+  const saveTurma = async () => {
     if (!turmaForm.nome.trim() || !turmaForm.codigo.trim()) { setTurmaFormError('Código e nome são obrigatórios.'); return; }
-    if (turmaModal.editId !== null) {
-      setTurmas(ts => ts.map(t => t.id === turmaModal.editId ? { ...t, ...turmaForm } : t));
-    } else {
-      setTurmas(ts => [...ts, { id: Math.max(0, ...ts.map(t => t.id)) + 1, ...turmaForm }]);
+    try {
+      if (turmaModal.editId !== null) {
+        const atualizada = await atualizarTurma(turmaModal.editId, turmaForm);
+        setTurmas(ts => ts.map(t => t.id === turmaModal.editId ? atualizada : t));
+      } else {
+        const nova = await criarTurma(turmaForm);
+        setTurmas(ts => [...ts, nova]);
+      }
+      setTurmaModal({ open: false, editId: null });
+    } catch (err: any) {
+      setTurmaFormError(err?.message || 'Erro ao salvar turma.');
     }
-    setTurmaModal({ open: false, editId: null });
   };
-  const deleteTurma = (id: number) => setTurmas(ts => ts.filter(t => t.id !== id));
+  const deleteTurma = async (id: number) => {
+    try {
+      await removerTurma(id);
+      setTurmas(ts => ts.filter(t => t.id !== id));
+    } catch (err) {
+      console.error('Falha ao remover turma:', err);
+    }
+  };
 
   // ── Coordenadores CRUD (admin only) ───────────────────────────────────────
+  type CoordForm = { nome: string; email: string; senha: string; cursoId: number };
   const [coordenadores, setCoordenadores] = useState<Coordenador[]>(MOCK_COORDENADORES_INICIAL);
   const [coordModal, setCoordModal] = useState<{ open: boolean; editId: number | null }>({ open: false, editId: null });
-  const [coordForm, setCoordForm] = useState<Omit<Coordenador, 'id'>>({ nome: '', email: '', senha: '', departamento: '', ativo: true });
+  const [coordForm, setCoordForm] = useState<CoordForm>({ nome: '', email: '', senha: '', cursoId: 1 });
   const [coordFormError, setCoordFormError] = useState('');
   const [coordShowSenha, setCoordShowSenha] = useState(false);
 
-  const openCoordAdd = () => { setCoordForm({ nome: '', email: '', senha: '', departamento: '', ativo: true }); setCoordFormError(''); setCoordShowSenha(false); setCoordModal({ open: true, editId: null }); };
-  const openCoordEdit = (c: Coordenador) => { setCoordForm({ nome: c.nome, email: c.email, senha: c.senha, departamento: c.departamento, ativo: c.ativo }); setCoordFormError(''); setCoordShowSenha(false); setCoordModal({ open: true, editId: c.id }); };
-  const saveCoord = () => {
-    if (!coordForm.nome.trim() || !coordForm.email.trim() || !coordForm.senha.trim()) { setCoordFormError('Nome, e-mail e senha são obrigatórios.'); return; }
-    if (coordModal.editId !== null) {
-      setCoordenadores(cs => cs.map(c => c.id === coordModal.editId ? { ...c, ...coordForm } : c));
-    } else {
-      const nextId = Math.max(0, ...coordenadores.map(c => c.id)) + 1;
-      setCoordenadores(cs => [...cs, { id: nextId, ...coordForm }]);
+  // Lista os coordenadores reais (o backend só retorna os ativos).
+  useEffect(() => {
+    listarCoordenadores().then(setCoordenadores).catch(() => {});
+  }, []);
+
+  const openCoordAdd = () => { setCoordForm({ nome: '', email: '', senha: '', cursoId: cursos[0]?.id ?? 1 }); setCoordFormError(''); setCoordShowSenha(false); setCoordModal({ open: true, editId: null }); };
+  const openCoordEdit = (c: Coordenador) => { setCoordForm({ nome: c.nome, email: c.email, senha: '', cursoId: c.cursoId }); setCoordFormError(''); setCoordShowSenha(false); setCoordModal({ open: true, editId: c.id }); };
+  const saveCoord = async () => {
+    if (!coordForm.nome.trim() || !coordForm.email.trim()) { setCoordFormError('Nome e e-mail são obrigatórios.'); return; }
+    const novo = coordModal.editId === null;
+    if (novo && coordForm.senha.trim().length < 8) { setCoordFormError('A senha deve ter no mínimo 8 caracteres.'); return; }
+    if (!novo && coordForm.senha.trim() && coordForm.senha.trim().length < 8) { setCoordFormError('A nova senha deve ter no mínimo 8 caracteres.'); return; }
+    try {
+      if (coordModal.editId !== null) {
+        const atualizado = await atualizarCoordenador(coordModal.editId, coordForm);
+        setCoordenadores(cs => cs.map(c => c.id === coordModal.editId ? { ...atualizado, senha: '' } : c));
+      } else {
+        const criado = await criarCoordenador(coordForm);
+        setCoordenadores(cs => [...cs, { ...criado, senha: '' }]);
+      }
+      setCoordModal({ open: false, editId: null });
+    } catch (err: any) {
+      setCoordFormError(err?.message || 'Erro ao salvar coordenador.');
     }
-    setCoordModal({ open: false, editId: null });
   };
-  const deleteCoord = (id: number) => setCoordenadores(cs => cs.filter(c => c.id !== id));
-  const toggleCoordAtivo = (id: number) => setCoordenadores(cs => cs.map(c => c.id === id ? { ...c, ativo: !c.ativo } : c));
+  const deleteCoord = async (id: number) => {
+    try {
+      await removerCoordenador(id);
+      setCoordenadores(cs => cs.filter(c => c.id !== id));
+    } catch (err) {
+      console.error('Falha ao remover coordenador:', err);
+    }
+  };
+
+  // ── Semestre CRUD (coordenador) ───────────────────────────────────────────
+  type SemForm = Omit<Semestre, 'id'>;
+  const emptySemForm: SemForm = { nome: '', dataInicio: '', dataTermino: '', statusEtapa: 'OFERTAS' };
+  const [semModal, setSemModal] = useState<{ open: boolean; editId: number | null }>({ open: false, editId: null });
+  const [semForm, setSemForm] = useState<SemForm>(emptySemForm);
+  const [semFormError, setSemFormError] = useState('');
+
+  const openSemAdd = () => { setSemForm(emptySemForm); setSemFormError(''); setSemModal({ open: true, editId: null }); };
+  const openSemEdit = (s: Semestre) => { setSemForm({ nome: s.nome, dataInicio: s.dataInicio, dataTermino: s.dataTermino, statusEtapa: s.statusEtapa }); setSemFormError(''); setSemModal({ open: true, editId: s.id }); };
+  const saveSem = async () => {
+    if (!semForm.nome.trim() || !semForm.dataInicio || !semForm.dataTermino) { setSemFormError('Nome e datas são obrigatórios.'); return; }
+    if (semForm.dataTermino <= semForm.dataInicio) { setSemFormError('A data de término deve ser posterior à de início.'); return; }
+    try {
+      if (semModal.editId !== null) {
+        const atualizado = await atualizarSemestre(semModal.editId, semForm);
+        setSemestres(ss => ss.map(s => s.id === semModal.editId ? atualizado : s));
+      } else {
+        const novo = await criarSemestre(semForm);
+        setSemestres(ss => [...ss, novo]);
+      }
+      setSemModal({ open: false, editId: null });
+    } catch (err: any) {
+      setSemFormError(err?.message || 'Erro ao salvar semestre.');
+    }
+  };
+  const deleteSem = async (id: number) => {
+    try {
+      await removerSemestre(id);
+      setSemestres(ss => ss.filter(s => s.id !== id));
+    } catch (err) {
+      console.error('Falha ao remover semestre:', err);
+    }
+  };
 
   // ── Wizard state ──────────────────────────────────────────────────────────
   const [wizardStep, setWizardStep] = useState(1);
@@ -1164,7 +1261,7 @@ function AppShell({ currentUser, onLogout }: { currentUser: SessaoUsuario; onLog
                   <CardContent>
                     <div className="text-2xl font-bold">{resumo?.disciplinas ?? disciplinas.length}</div>
                     <p className="text-xs text-muted-foreground">
-                      Em {resumo?.cursos ?? MOCK_CURSOS.filter(c => disciplinas.some(d => d.cursoId === c.id)).length} cursos
+                      Em {resumo?.cursos ?? cursos.filter(c => disciplinas.some(d => d.cursoId === c.id)).length} cursos
                     </p>
                   </CardContent>
                 </Card>
@@ -1184,7 +1281,7 @@ function AppShell({ currentUser, onLogout }: { currentUser: SessaoUsuario; onLog
                           </>
                         ) : <div className="text-sm text-muted-foreground">Nenhum ativo</div>;
                       }
-                      const ativo = MOCK_SEMESTRES.find(s => s.statusEtapa !== 'CONCLUIDO');
+                      const ativo = semestres.find(s => s.statusEtapa !== 'CONCLUIDO');
                       return ativo ? (
                         <>
                           <div className="text-2xl font-bold">{ativo.nome}</div>
@@ -1266,7 +1363,7 @@ function AppShell({ currentUser, onLogout }: { currentUser: SessaoUsuario; onLog
                         </div>
                         <Badge variant="secondary">{sem.status}</Badge>
                       </div>
-                    )) : MOCK_SEMESTRES.map(sem => (
+                    )) : semestres.map(sem => (
                       <div key={sem.id} className="flex items-center justify-between p-3 rounded-lg border">
                         <div>
                           <p className="font-medium text-sm">{sem.nome}</p>
@@ -1707,7 +1804,7 @@ function AppShell({ currentUser, onLogout }: { currentUser: SessaoUsuario; onLog
                     {disciplinas
                       .filter(d => !discSearch || d.nome.toLowerCase().includes(discSearch.toLowerCase()) || d.sigla.toLowerCase().includes(discSearch.toLowerCase()))
                       .map(disc => {
-                        const curso = MOCK_CURSOS.find(c => c.id === disc.cursoId);
+                        const curso = cursos.find(c => c.id === disc.cursoId);
                         return (
                           <TableRow key={disc.id}>
                             <TableCell><Badge variant="secondary">{disc.sigla}</Badge></TableCell>
@@ -1773,7 +1870,7 @@ function AppShell({ currentUser, onLogout }: { currentUser: SessaoUsuario; onLog
                     {turmas
                       .filter(t => !turmaSearch || t.nome.toLowerCase().includes(turmaSearch.toLowerCase()) || t.codigo.toLowerCase().includes(turmaSearch.toLowerCase()))
                       .map(turma => {
-                        const curso = MOCK_CURSOS.find(c => c.id === turma.cursoId);
+                        const curso = cursos.find(c => c.id === turma.cursoId);
                         return (
                           <TableRow key={turma.id}>
                             <TableCell><code className="text-xs bg-muted px-1.5 py-0.5 rounded">{turma.codigo}</code></TableCell>
@@ -1812,9 +1909,14 @@ function AppShell({ currentUser, onLogout }: { currentUser: SessaoUsuario; onLog
                   <h2 className="text-2xl font-bold tracking-tight">Semestres Letivos</h2>
                   <p className="text-muted-foreground">Histórico e acompanhamento de etapas do fluxo de alocação.</p>
                 </div>
-                <Button onClick={() => setCurrentView('wizard')}>
-                  <Plus className="mr-2 h-4 w-4" />Criar Semestre
-                </Button>
+                <div className="flex items-center gap-2">
+                  <Button variant="outline" onClick={() => setCurrentView('wizard')}>
+                    <Play className="mr-2 h-4 w-4" />Assistente
+                  </Button>
+                  <Button onClick={openSemAdd}>
+                    <Plus className="mr-2 h-4 w-4" />Novo Semestre
+                  </Button>
+                </div>
               </div>
               <div className="flex items-center gap-2 text-xs text-muted-foreground">
                 {(['OFERTAS', 'RESTRICOES', 'SIMULACAO', 'CONCLUIDO'] as StatusEtapa[]).map((etapa, i, arr) => (
@@ -1825,7 +1927,7 @@ function AppShell({ currentUser, onLogout }: { currentUser: SessaoUsuario; onLog
                 ))}
               </div>
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {MOCK_SEMESTRES.map(sem => (
+                {semestres.map(sem => (
                   <Card key={sem.id} className="relative overflow-hidden">
                     {sem.statusEtapa !== 'CONCLUIDO' && (
                       <div className="absolute top-0 right-0 w-16 h-16 pointer-events-none">
@@ -1841,11 +1943,19 @@ function AppShell({ currentUser, onLogout }: { currentUser: SessaoUsuario; onLog
                     <CardContent>
                       <Badge variant={etapaBadgeVariant(sem.statusEtapa)}>{ETAPA_LABELS[sem.statusEtapa]}</Badge>
                     </CardContent>
-                    <CardFooter>
-                      <Button variant="outline" className="w-full">Ver Detalhes</Button>
+                    <CardFooter className="gap-2">
+                      <Button variant="outline" className="flex-1" onClick={() => openSemEdit(sem)}>
+                        <Edit className="mr-2 h-4 w-4" />Editar
+                      </Button>
+                      <Button variant="ghost" size="icon" className="text-destructive shrink-0" onClick={() => deleteSem(sem.id)}>
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
                     </CardFooter>
                   </Card>
                 ))}
+                {semestres.length === 0 && (
+                  <p className="text-sm text-muted-foreground col-span-full text-center py-10">Nenhum semestre cadastrado.</p>
+                )}
               </div>
             </motion.div>
           )}
@@ -1874,7 +1984,7 @@ function AppShell({ currentUser, onLogout }: { currentUser: SessaoUsuario; onLog
                     <TableRow>
                       <TableHead>Nome</TableHead>
                       <TableHead>E-mail</TableHead>
-                      <TableHead>Departamento</TableHead>
+                      <TableHead>Curso</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead className="text-right">Ações</TableHead>
                     </TableRow>
@@ -1891,17 +2001,16 @@ function AppShell({ currentUser, onLogout }: { currentUser: SessaoUsuario; onLog
                             </div>
                           </TableCell>
                           <TableCell className="text-muted-foreground text-sm">{c.email}</TableCell>
-                          <TableCell className="text-sm">{c.departamento}</TableCell>
+                          <TableCell className="text-sm">{cursos.find(cur => cur.id === c.cursoId)?.nome ?? '—'}</TableCell>
                           <TableCell>
-                            <button
-                              onClick={() => toggleCoordAtivo(c.id)}
+                            <span
                               className={cn(
-                                'inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold border transition-colors cursor-pointer',
-                                c.ativo ? 'border-green-200 bg-green-50 text-green-700 hover:bg-green-100' : 'border-gray-200 bg-gray-50 text-gray-500 hover:bg-gray-100'
+                                'inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold border',
+                                c.ativo ? 'border-green-200 bg-green-50 text-green-700' : 'border-gray-200 bg-gray-50 text-gray-500'
                               )}
                             >
                               {c.ativo ? 'Ativo' : 'Inativo'}
-                            </button>
+                            </span>
                           </TableCell>
                           <TableCell className="text-right">
                             <Button variant="ghost" size="icon" onClick={() => openCoordEdit(c)}>
@@ -2450,7 +2559,7 @@ function AppShell({ currentUser, onLogout }: { currentUser: SessaoUsuario; onLog
                         value={discForm.cursoId}
                         onChange={e => setDiscForm(f => ({ ...f, cursoId: Number(e.target.value) }))}
                       >
-                        {MOCK_CURSOS.map(c => <option key={c.id} value={c.id}>{c.sigla} — {c.nome}</option>)}
+                        {cursos.map(c => <option key={c.id} value={c.id}>{c.sigla} — {c.nome}</option>)}
                       </select>
                     </div>
                     <div>
@@ -2510,7 +2619,7 @@ function AppShell({ currentUser, onLogout }: { currentUser: SessaoUsuario; onLog
                         value={turmaForm.cursoId}
                         onChange={e => setTurmaForm(f => ({ ...f, cursoId: Number(e.target.value) }))}
                       >
-                        {MOCK_CURSOS.map(c => <option key={c.id} value={c.id}>{c.sigla} — {c.nome}</option>)}
+                        {cursos.map(c => <option key={c.id} value={c.id}>{c.sigla} — {c.nome}</option>)}
                       </select>
                     </div>
                     <div>
@@ -2587,25 +2696,76 @@ function AppShell({ currentUser, onLogout }: { currentUser: SessaoUsuario; onLog
                       </div>
                     </div>
                     <div>
-                      <Label className="text-xs mb-1.5 block">Departamento / Curso</Label>
-                      <Input value={coordForm.departamento} onChange={e => setCoordForm(f => ({ ...f, departamento: e.target.value }))} placeholder="Ex.: Análise e Desenvolvimento de Sistemas" />
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <button
-                        type="button"
-                        onClick={() => setCoordForm(f => ({ ...f, ativo: !f.ativo }))}
-                        className={cn('relative w-10 h-5 rounded-full transition-colors shrink-0', coordForm.ativo ? 'bg-primary' : 'bg-muted')}
+                      <Label className="text-xs mb-1.5 block">Curso</Label>
+                      <select
+                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        value={coordForm.cursoId}
+                        onChange={e => setCoordForm(f => ({ ...f, cursoId: Number(e.target.value) }))}
                       >
-                        <span className={cn('absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform', coordForm.ativo ? 'translate-x-5' : 'translate-x-0.5')} />
-                      </button>
-                      <Label className="text-xs cursor-pointer" onClick={() => setCoordForm(f => ({ ...f, ativo: !f.ativo }))}>
-                        Conta {coordForm.ativo ? 'ativa' : 'inativa'}
-                      </Label>
+                        {cursos.map(c => <option key={c.id} value={c.id}>{c.sigla} — {c.nome}</option>)}
+                      </select>
                     </div>
                   </div>
                   <div className="px-6 py-4 border-t flex justify-end gap-2 bg-muted/30">
                     <Button variant="outline" onClick={() => setCoordModal({ open: false, editId: null })}>Cancelar</Button>
                     <Button onClick={saveCoord}><Check className="mr-2 h-4 w-4" />{coordModal.editId !== null ? 'Salvar alterações' : 'Criar coordenador'}</Button>
+                  </div>
+                </motion.div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Semestre Modal */}
+          <AnimatePresence>
+            {semModal.open && (
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/40 backdrop-blur-[2px] flex items-center justify-center z-50 p-4">
+                <motion.div initial={{ scale: 0.95, y: 12 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.95, y: 12 }} className="bg-background rounded-xl shadow-2xl w-full max-w-md overflow-hidden border">
+                  <div className="flex items-center justify-between px-6 py-4 border-b">
+                    <div>
+                      <h3 className="font-semibold text-base">{semModal.editId !== null ? 'Editar semestre' : 'Novo semestre'}</h3>
+                      <p className="text-xs text-muted-foreground mt-0.5">{semModal.editId !== null ? 'Altere os dados do semestre letivo.' : 'Preencha os dados para cadastrar.'}</p>
+                    </div>
+                    <Button variant="ghost" size="icon" onClick={() => setSemModal({ open: false, editId: null })}>
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  <div className="p-6 space-y-4">
+                    {semFormError && (
+                      <div className="flex items-center gap-2 px-3 py-2.5 bg-destructive/10 border border-destructive/20 rounded-lg">
+                        <AlertCircle className="h-4 w-4 text-destructive shrink-0" />
+                        <p className="text-xs text-destructive">{semFormError}</p>
+                      </div>
+                    )}
+                    <div>
+                      <Label className="text-xs mb-1.5 block">Nome / Período <span className="text-destructive">*</span></Label>
+                      <Input value={semForm.nome} onChange={e => { setSemForm(f => ({ ...f, nome: e.target.value })); setSemFormError(''); }} placeholder="Ex.: 2024.2" />
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <Label className="text-xs mb-1.5 block">Início <span className="text-destructive">*</span></Label>
+                        <DatePicker value={semForm.dataInicio} onChange={v => { setSemForm(f => ({ ...f, dataInicio: v })); setSemFormError(''); }} placeholder="Início" />
+                      </div>
+                      <div>
+                        <Label className="text-xs mb-1.5 block">Término <span className="text-destructive">*</span></Label>
+                        <DatePicker value={semForm.dataTermino} onChange={v => { setSemForm(f => ({ ...f, dataTermino: v })); setSemFormError(''); }} placeholder="Término" min={semForm.dataInicio || undefined} />
+                      </div>
+                    </div>
+                    <div>
+                      <Label className="text-xs mb-1.5 block">Etapa</Label>
+                      <select
+                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        value={semForm.statusEtapa}
+                        onChange={e => setSemForm(f => ({ ...f, statusEtapa: e.target.value as StatusEtapa }))}
+                      >
+                        {(['OFERTAS', 'RESTRICOES', 'SIMULACAO', 'CONCLUIDO'] as StatusEtapa[]).map(et => (
+                          <option key={et} value={et}>{ETAPA_LABELS[et]}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                  <div className="px-6 py-4 border-t flex justify-end gap-2 bg-muted/30">
+                    <Button variant="outline" onClick={() => setSemModal({ open: false, editId: null })}>Cancelar</Button>
+                    <Button onClick={saveSem}><Check className="mr-2 h-4 w-4" />{semModal.editId !== null ? 'Salvar alterações' : 'Cadastrar'}</Button>
                   </div>
                 </motion.div>
               </motion.div>
