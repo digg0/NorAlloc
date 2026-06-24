@@ -2,7 +2,6 @@ import { apiFetch } from './api';
 
 export type Turno = 'Manhã' | 'Tarde' | 'Noite';
 
-// Formato vindo do backend (snake_case).
 interface TurmaBackend {
   id: number;
   nome: string;
@@ -11,7 +10,6 @@ interface TurmaBackend {
   semestre_id: number | null;
 }
 
-// Formato usado na UI (igual ao type Turma do App.tsx).
 export interface TurmaUI {
   id: number;
   codigo: string;
@@ -27,8 +25,6 @@ export interface TurmaFormData {
   cursoId: number;
 }
 
-// O backend não modela turno/codigo. Inferimos o turno a partir do texto do
-// nome (que normalmente traz "(Manhã)/(Tarde)/(Noite)") e derivamos um código.
 function inferirTurno(nome: string): Turno {
   const n = nome.toLowerCase();
   if (n.includes('tarde')) return 'Tarde';

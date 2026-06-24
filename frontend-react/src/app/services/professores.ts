@@ -2,7 +2,6 @@ import { apiFetch } from './api';
 
 export type RegimeTrabalho = 'DE' | '40H' | '20H';
 
-// Formato vindo do backend (snake_case).
 interface ProfessorBackend {
   id: number;
   nome: string;
@@ -12,7 +11,6 @@ interface ProfessorBackend {
   carga_maxima: number | null;
 }
 
-// Formato usado na UI (igual ao type Professor do App.tsx).
 export interface ProfessorUI {
   id: number;
   nome: string;
@@ -29,7 +27,6 @@ export interface ProfessorFormData {
   senha: string; // cria/atualiza a conta de login (só enviado quando preenchido)
 }
 
-// Carga horária máxima derivada do regime (backend aceita opcional).
 const CARGA_POR_REGIME: Record<RegimeTrabalho, number> = {
   DE: 20,
   '40H': 40,
@@ -54,7 +51,6 @@ function paraBackend(f: ProfessorFormData) {
     area: f.areaAtuacao || null,
     carga_maxima: CARGA_POR_REGIME[f.regimeTrabalho],
   };
-  // Só envia a senha quando preenchida (na edição, em branco = mantém a atual).
   if (f.senha && f.senha.trim()) body.password = f.senha;
   return body;
 }

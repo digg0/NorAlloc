@@ -1,5 +1,3 @@
-// Cliente HTTP central da aplicação.
-// A URL base vem de VITE_API_URL (arquivo .env) e cai para localhost:8000.
 
 const BASE_URL =
   ((import.meta as any).env?.VITE_API_URL as string | undefined) ||
