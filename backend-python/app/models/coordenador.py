@@ -14,4 +14,7 @@ class Coordenador(Base):
     # autenticar em /api/auth/login como os demais perfis (ADMIN/PROFESSOR).
     usuario_id = Column(Integer, ForeignKey("usuarios.id"), nullable=True)
 
+    # Coordenadores também são docentes da instituição.
+    professor_id = Column(Integer, ForeignKey("professores.id"), nullable=True)
+
     ativo = Column(Boolean, default=True, nullable=False)

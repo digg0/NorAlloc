@@ -11,6 +11,7 @@ from app.models.oferta_disciplina import OfertaDisciplina
 from app.models.professor import Professor
 from app.models.semestre import Semestre
 from app.models.turma import Turma
+from app.models.usuario import Usuario
 
 
 def _criar_base(db):
@@ -79,8 +80,9 @@ def test_monta_relatorio_com_dados_reais(db):
 
 def test_exporta_pdf_valido(db):
     curso, semestre = _criar_base(db)
+    admin = Usuario(nome="Admin", email="admin@x.com", senha="x", tipo="ADMIN")
 
-    resposta = emitir_relatorio_pdf(curso.id, semestre.id, db)
+    resposta = emitir_relatorio_pdf(curso.id, semestre.id, db, admin)
 
     async def coletar():
         partes = [chunk async for chunk in resposta.body_iterator]

@@ -1,5 +1,10 @@
-"""Seed de dados reais para teste manual (cursos, coordenadores, professores,
-semestres, turmas, disciplinas, horários e ofertas).
+"""Seed de dados reais para teste manual (cursos, semestres, turmas,
+disciplinas, horários e ofertas).
+
+Os professores e coordenadores ficaram a cargo de `seed_docentes_reais.py`
+(docentes de fato da instituição). As ofertas aqui ficam sem professor
+(professor_id nulo); `seed_docentes_reais.py` atribui um docente real a
+qualquer oferta nessa condição.
 
 Idempotente: pode ser executado várias vezes sem duplicar registros (busca
 por chave natural antes de inserir). Não é chamado automaticamente no boot
@@ -10,35 +15,17 @@ da aplicação — execute manualmente quando quiser popular o banco local:
 import datetime
 
 from app.core.database import SessionLocal
-from app.core.security import get_password_hash
-from app.models.coordenador import Coordenador
 from app.models.curso import Curso
 from app.models.disciplina import Disciplina
 from app.models.horario import Horario
 from app.models.oferta_disciplina import OfertaDisciplina
-from app.models.professor import Professor
 from app.models.semestre import Semestre
 from app.models.turma import Turma
-from app.models.usuario import Usuario
 
 CURSOS = [
     ("ADS", "Tecnólogo"),
     ("REDES DE COMPUTADORES", "Tecnólogo"),
     ("LICENCIATURA EM MATEMATICA", "Licenciatura"),
-]
-
-# (nome, email, senha, curso_nome)
-COORDENADORES = [
-    ("Maria Santos", "maria.santos@ifce.edu.br", "coord123", "ADS"),
-    ("João Pereira", "joao.pereira@ifce.edu.br", "coord123", "REDES DE COMPUTADORES"),
-    ("Ana Costa", "ana.costa@ifce.edu.br", "coord123", "LICENCIATURA EM MATEMATICA"),
-]
-
-# (nome, email, regime_trabalho, area, carga_maxima)
-PROFESSORES = [
-    ("Carlos Silva", "carlos.silva@ifce.edu.br", "DE", "Computação", 20),
-    ("Patrícia Oliveira", "patricia.oliveira@ifce.edu.br", "40H", "Banco de Dados", 40),
-    ("Ricardo Souza", "ricardo.souza@ifce.edu.br", "20H", "Redes", 20),
 ]
 
 # (nome, data_inicio, data_fim, status)
@@ -95,11 +82,12 @@ HORARIOS = [
     for turno, hora_inicio, hora_fim in SLOTS_PADRAO
 ]
 
-# (turma_nome, disciplina_nome, professor_email, carga_horaria)
+# (turma_nome, disciplina_nome, carga_horaria) — sem professor: atribuído
+# por seed_docentes_reais.py.
 OFERTAS = [
-    ("ADS1", "Programação Orientada a Objetos", "carlos.silva@ifce.edu.br", 4),
-    ("ADS2", "Banco de Dados", "patricia.oliveira@ifce.edu.br", 4),
-    ("REDES1", "Redes de Computadores", "ricardo.souza@ifce.edu.br", 4),
+    ("ADS1", "Programação Orientada a Objetos", 4),
+    ("ADS2", "Banco de Dados", 4),
+    ("REDES1", "Redes de Computadores", 4),
 ]
 
 
@@ -114,40 +102,6 @@ def seed_dados_teste() -> None:
                 db.add(curso)
                 db.flush()
             cursos_por_nome[nome] = curso
-
-        for nome, email, senha, curso_nome in COORDENADORES:
-            if db.query(Coordenador).filter(Coordenador.email == email).first():
-                continue
-            senha_hash = get_password_hash(senha)
-            usuario = db.query(Usuario).filter(Usuario.email == email).first()
-            if not usuario:
-                usuario = Usuario(nome=nome, email=email, senha=senha_hash, tipo="COORDENADOR")
-                db.add(usuario)
-                db.flush()
-            db.add(
-                Coordenador(
-                    nome=nome,
-                    email=email,
-                    curso_id=cursos_por_nome[curso_nome].id,
-                    hashed_password=senha_hash,
-                    usuario_id=usuario.id,
-                    ativo=True,
-                )
-            )
-
-        for nome, email, regime, area, carga_maxima in PROFESSORES:
-            if db.query(Professor).filter(Professor.email == email).first():
-                continue
-            db.add(
-                Professor(
-                    nome=nome,
-                    email=email,
-                    regime_trabalho=regime,
-                    area=area,
-                    carga_maxima=carga_maxima,
-                    afastado=False,
-                )
-            )
 
         semestres_por_nome = {}
         for nome, data_inicio, data_fim, status_ in SEMESTRES:
@@ -195,10 +149,7 @@ def seed_dados_teste() -> None:
             if not existe:
                 db.add(Horario(dia_semana=dia, turno=turno, hora_inicio=hora_inicio, hora_fim=hora_fim))
 
-        db.flush()
-
-        professores_por_email = {p.email: p for p in db.query(Professor).all()}
-        for turma_nome, disciplina_nome, professor_email, carga in OFERTAS:
+        for turma_nome, disciplina_nome, carga in OFERTAS:
             turma = turmas_por_nome[turma_nome]
             disciplina = disciplinas_por_nome[disciplina_nome]
             existe = (
@@ -214,7 +165,7 @@ def seed_dados_teste() -> None:
                     OfertaDisciplina(
                         turma_id=turma.id,
                         disciplina_id=disciplina.id,
-                        professor_id=professores_por_email[professor_email].id,
+                        professor_id=None,
                         carga_horaria=carga,
                     )
                 )

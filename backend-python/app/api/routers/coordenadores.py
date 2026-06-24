@@ -6,6 +6,7 @@ from app.core.database import get_db
 from app.core.deps import obter_usuario_atual
 from app.core.security import get_password_hash
 from app.models.coordenador import Coordenador
+from app.models.professor import Professor
 from app.models.usuario import Usuario
 from app.schemas.coordenador import CoordenadorCreate, CoordenadorUpdate, CoordenadorResponse
 
@@ -44,26 +45,35 @@ def criar_coordenador(coord_in: CoordenadorCreate, db: Session = Depends(get_db)
     coordenador nunca conseguiria autenticar.
     """
 
+    if coord_in.professor_id is not None and not db.query(Professor).filter(Professor.id == coord_in.professor_id).first():
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Professor não encontrado.")
+
     if db.query(Coordenador).filter(Coordenador.email == coord_in.email).first():
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Este e-mail já está em uso.")
-    if db.query(Usuario).filter(Usuario.email == coord_in.email).first():
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Este e-mail já está em uso.")
 
     senha_hash = get_password_hash(coord_in.password)
 
-    novo_usuario = Usuario(
-        nome=coord_in.nome,
-        email=coord_in.email,
-        senha=senha_hash,
-        tipo="COORDENADOR",
-    )
-    db.add(novo_usuario)
+    novo_usuario = db.query(Usuario).filter(Usuario.email == coord_in.email).first()
+    if novo_usuario:
+        # E-mail já existe como Usuario (ex.: o professor já tinha conta) —
+        # reaproveita a conta e só garante que o tipo passe a ser coordenador.
+        novo_usuario.senha = senha_hash
+        novo_usuario.tipo = "COORDENADOR"
+    else:
+        novo_usuario = Usuario(
+            nome=coord_in.nome,
+            email=coord_in.email,
+            senha=senha_hash,
+            tipo="COORDENADOR",
+        )
+        db.add(novo_usuario)
     db.flush()  # garante novo_usuario.id sem precisar commitar ainda
 
     novo_coord = Coordenador(
         nome=coord_in.nome,
         email=coord_in.email,
         curso_id=coord_in.curso_id,
+        professor_id=coord_in.professor_id,
         hashed_password=senha_hash,
         usuario_id=novo_usuario.id,
     )

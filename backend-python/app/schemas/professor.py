@@ -1,3 +1,4 @@
+from datetime import date
 from pydantic import BaseModel, EmailStr, Field, ConfigDict
 from typing import Optional
 
@@ -42,6 +43,8 @@ class ProfessorBase(BaseModel):
     carga_maxima: Optional[int] = Field(None, gt=0, description="Carga horária máxima semanal")
     afastado: bool = Field(False, description="Se o professor está afastado")
     motivo_afastamento: Optional[str] = Field(None, description="Motivo do afastamento, se houver")
+    data_ingresso: Optional[date] = Field(None, description="Data de ingresso no campus (critério de desempate do solver)")
+    data_nascimento: Optional[date] = Field(None, description="Data de nascimento (critério de desempate secundário)")
 
 
 class ProfessorCreate(ProfessorBase):
@@ -58,6 +61,8 @@ class ProfessorUpdate(BaseModel):
     carga_maxima: Optional[int] = Field(None, gt=0)
     afastado: Optional[bool] = None
     motivo_afastamento: Optional[str] = None
+    data_ingresso: Optional[date] = None
+    data_nascimento: Optional[date] = None
 
 
 class ProfessorResponse(ProfessorBase):

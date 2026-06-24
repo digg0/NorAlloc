@@ -1,5 +1,8 @@
 """Seed dos cursos reais do campus (Letras, Agropecuária e Informática para
-Internet), com a matriz curricular completa e um coordenador para cada um.
+Internet), com a matriz curricular completa.
+
+Os coordenadores ficam a cargo de `seed_docentes_reais.py` (coordenadores
+são docentes reais da instituição).
 
 Os arquivos de origem (Letras.json, curso_materias_agro.json, Infonet.json)
 vieram com corrupção de codificação (acentos quebrados); os nomes abaixo já
@@ -12,23 +15,13 @@ Idempotente: pode ser executado várias vezes sem duplicar registros.
     python -m app.core.seed_cursos_reais
 """
 from app.core.database import SessionLocal
-from app.core.security import get_password_hash
-from app.models.coordenador import Coordenador
 from app.models.curso import Curso
 from app.models.disciplina import Disciplina
-from app.models.usuario import Usuario
 
 CURSOS = [
     ("LICENCIATURA EM LETRAS", "Superior"),
     ("TECNICO INTEGRADO EM AGROPECUARIA", "Técnico"),
     ("TECNICO EM INFORMATICA PARA INTERNET", "Técnico"),
-]
-
-# (nome, email, senha, curso_nome)
-COORDENADORES = [
-    ("Francisca Almeida", "francisca.almeida@ifce.edu.br", "coord123", "LICENCIATURA EM LETRAS"),
-    ("Antônio Rodrigues", "antonio.rodrigues@ifce.edu.br", "coord123", "TECNICO INTEGRADO EM AGROPECUARIA"),
-    ("Juliana Mendes", "juliana.mendes@ifce.edu.br", "coord123", "TECNICO EM INFORMATICA PARA INTERNET"),
 ]
 
 # (nome, carga_horaria) por curso
@@ -229,26 +222,6 @@ def seed_cursos_reais() -> None:
                 db.add(curso)
                 db.flush()
             cursos_por_nome[nome] = curso
-
-        for nome, email, senha, curso_nome in COORDENADORES:
-            if db.query(Coordenador).filter(Coordenador.email == email).first():
-                continue
-            senha_hash = get_password_hash(senha)
-            usuario = db.query(Usuario).filter(Usuario.email == email).first()
-            if not usuario:
-                usuario = Usuario(nome=nome, email=email, senha=senha_hash, tipo="COORDENADOR")
-                db.add(usuario)
-                db.flush()
-            db.add(
-                Coordenador(
-                    nome=nome,
-                    email=email,
-                    curso_id=cursos_por_nome[curso_nome].id,
-                    hashed_password=senha_hash,
-                    usuario_id=usuario.id,
-                    ativo=True,
-                )
-            )
 
         for curso_nome, disciplinas in DISCIPLINAS.items():
             curso_id = cursos_por_nome[curso_nome].id

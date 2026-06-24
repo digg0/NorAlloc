@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Boolean, ForeignKey
+from sqlalchemy import Column, Date, Integer, String, Boolean, ForeignKey
 from sqlalchemy.orm import relationship
 
 from app.core.database import Base
@@ -18,5 +18,10 @@ class Professor(Base):
     carga_maxima = Column(Integer, nullable=True)
     afastado = Column(Boolean, nullable=False, default=False)
     motivo_afastamento = Column(String, nullable=True)
+    # Usados pelo solver como critério de desempate entre professores
+    # (mais antigo no campus, depois mais velho, tem prioridade na
+    # satisfação de preferências quando há conflito de horário desejado).
+    data_ingresso = Column(Date, nullable=True)
+    data_nascimento = Column(Date, nullable=True)
 
     usuario = relationship("Usuario")

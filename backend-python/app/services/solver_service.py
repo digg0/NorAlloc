@@ -20,8 +20,17 @@ Quando `curso_id` é informado (coordenador logado, restrito ao próprio
 curso), a geração abrange só as turmas daquele curso — mas os horários que
 professores compartilhados já ocupam em turmas de OUTROS cursos no mesmo
 semestre continuam bloqueados, para não gerar conflito entre cursos.
+
+Critério de desempate entre professores: quando as preferências de dois
+professores disputam o mesmo horário (ex.: ambos preferem manhã, mas só um
+slot está disponível), o professor mais antigo no campus (`data_ingresso`
+mais antiga) tem prioridade; em caso de empate, vence o mais velho
+(`data_nascimento` mais antiga). Isso é implementado multiplicando o peso
+das restrições soft de cada professor por sua posição num ranking de
+antiguidade — sem afetar as restrições hard (conflito, disponibilidade).
 """
 from collections import defaultdict
+from datetime import date
 from typing import Dict, List, Optional, Tuple
 
 from sqlalchemy.orm import Session
@@ -69,6 +78,18 @@ def _slot_codes_por_horario(horarios: List[Horario]) -> Dict[int, str]:
         for indice, h in enumerate(lista, start=1):
             codigos[h.id] = f"{dia_c}_{letra}{indice}"
     return codigos
+
+
+def _calcular_prioridade_professores(professores: Dict[int, Professor]) -> Dict[int, int]:
+    """Ranking de antiguidade: data_ingresso mais antiga vence; em empate,
+    data_nascimento mais antiga vence. Retorna um multiplicador de peso
+    (maior = mais prioridade) para usar nas restrições soft do professor."""
+    ordenados = sorted(
+        professores.values(),
+        key=lambda p: (p.data_ingresso or date.max, p.data_nascimento or date.max),
+    )
+    total = len(ordenados)
+    return {p.id: total - indice for indice, p in enumerate(ordenados)}
 
 
 def gerar_grade(semestre_id: int, db: Session, curso_id: Optional[int] = None) -> GerarGradeResponse:
@@ -241,19 +262,22 @@ def gerar_grade(semestre_id: int, db: Session, curso_id: Optional[int] = None) -
         pref = preferencias_map[professor_id]
         opt.add(Sum([If(v, 1, 0) for v in variaveis]) <= pref.max_aulas_dia)
 
-    # Soft: preferências não obrigatórias do professor.
+    # Soft: preferências não obrigatórias do professor, ponderadas pelo
+    # ranking de antiguidade (desempate: data_ingresso, depois data_nascimento).
+    prioridade = _calcular_prioridade_professores(professores)
     for o in ofertas:
         if not o.professor_id:
             continue
         pref = preferencias_map.get(o.professor_id)
         if not pref:
             continue
+        peso_prioridade = prioridade.get(o.professor_id, 1)
         for h in elegiveis[o.id]:
             var = x[(o.id, h.id)]
             if pref.evitar_sexta and h.dia_semana == "SEXTA":
-                opt.add_soft(Not(var), weight=3)
+                opt.add_soft(Not(var), weight=3 * peso_prioridade)
             if pref.prefere_manha and h.turno != "MANHA":
-                opt.add_soft(Not(var), weight=2)
+                opt.add_soft(Not(var), weight=2 * peso_prioridade)
 
         if pref.prefere_aula_dupla:
             por_dia: Dict[str, List[Horario]] = defaultdict(list)
@@ -263,7 +287,7 @@ def gerar_grade(semestre_id: int, db: Session, curso_id: Optional[int] = None) -
                 lista.sort(key=lambda hh: hh.hora_inicio)
                 for h1, h2 in zip(lista, lista[1:]):
                     if h1.hora_fim == h2.hora_inicio:
-                        opt.add_soft(And(x[(o.id, h1.id)], x[(o.id, h2.id)]), weight=2)
+                        opt.add_soft(And(x[(o.id, h1.id)], x[(o.id, h2.id)]), weight=2 * peso_prioridade)
 
     if opt.check() != sat:
         return GerarGradeResponse(
