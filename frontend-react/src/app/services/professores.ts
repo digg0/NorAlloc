@@ -82,3 +82,8 @@ export async function atualizarProfessor(
 export async function removerProfessor(id: number): Promise<void> {
   await apiFetch<void>(`/api/professores/${id}`, { method: 'DELETE' });
 }
+
+export async function meuPerfilProfessor(): Promise<ProfessorUI> {
+  const dados = await apiFetch<ProfessorBackend>('/api/professores/me');
+  return paraUI(dados);
+}

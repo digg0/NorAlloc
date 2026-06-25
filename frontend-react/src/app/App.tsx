@@ -11,7 +11,7 @@ import {
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { login as apiLogin, logout as apiLogout, getSessao, type SessaoUsuario } from './services/auth';
-import { listarProfessores, criarProfessor, atualizarProfessor, removerProfessor } from './services/professores';
+import { listarProfessores, criarProfessor, atualizarProfessor, removerProfessor, meuPerfilProfessor } from './services/professores';
 import { getResumoGeral, getResumoProfessor, type ResumoGeral, type ResumoProfessor } from './services/dashboard';
 import { listarCursos, criarCurso } from './services/cursos';
 import { listarDisciplinas, criarDisciplina, atualizarDisciplina, removerDisciplina } from './services/disciplinas';
@@ -667,10 +667,16 @@ function AppShell({ currentUser, onLogout }: { currentUser: SessaoUsuario; onLog
   const [apiError, setApiError] = useState('');
 
   useEffect(() => {
-    listarProfessores()
-      .then(setProfessores)
-      .catch((err) => setApiError(err?.message || 'Erro ao carregar professores.'));
-  }, []);
+    if (isProf) {
+      meuPerfilProfessor()
+        .then(p => setProfessores([p]))
+        .catch(() => setProfessores([]));
+    } else {
+      listarProfessores()
+        .then(setProfessores)
+        .catch((err) => setApiError(err?.message || 'Erro ao carregar professores.'));
+    }
+  }, [isProf]);
 
   const [resumo, setResumo] = useState<ResumoGeral | null>(null);
   const [resumoProf, setResumoProf] = useState<ResumoProfessor | null>(null);
@@ -937,6 +943,25 @@ function AppShell({ currentUser, onLogout }: { currentUser: SessaoUsuario; onLog
         setWizardError(err?.message || 'Erro ao criar semestre.');
       }
       return;
+    }
+    if (wizardStep === 3 && wizardSemestreId) {
+      const restricoesComDados = Object.values(wizardData.restricoes).filter(
+        r => r.horariosBloqueados.length > 0 || r.limiteCargaHoraria
+      );
+      try {
+        await Promise.all(
+          restricoesComDados.map(r =>
+            salvarDisponibilidade(r.professorId, {
+              semestre_id: wizardSemestreId!,
+              horarios_bloqueados: r.horariosBloqueados,
+              limite_carga_horaria: r.limiteCargaHoraria ?? 20,
+            })
+          )
+        );
+      } catch (err: any) {
+        setWizardError(err?.message || 'Erro ao salvar restrições.');
+        return;
+      }
     }
     setWizardStep(s => s + 1);
   };
@@ -1887,9 +1912,11 @@ function AppShell({ currentUser, onLogout }: { currentUser: SessaoUsuario; onLog
                       onChange={e => setProfSearch(e.target.value)}
                     />
                   </div>
-                  <Button onClick={openProfAdd}>
-                    <Plus className="mr-2 h-4 w-4" />Novo Professor
-                  </Button>
+                  {isAdmin && (
+                    <Button onClick={openProfAdd}>
+                      <Plus className="mr-2 h-4 w-4" />Novo Professor
+                    </Button>
+                  )}
                 </div>
               </div>
               <Card>
@@ -1900,7 +1927,7 @@ function AppShell({ currentUser, onLogout }: { currentUser: SessaoUsuario; onLog
                       <TableHead>E-mail</TableHead>
                       <TableHead>Regime</TableHead>
                       <TableHead>Área de Atuação</TableHead>
-                      <TableHead className="text-right">Ações</TableHead>
+                      {isAdmin && <TableHead className="text-right">Ações</TableHead>}
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -1921,18 +1948,20 @@ function AppShell({ currentUser, onLogout }: { currentUser: SessaoUsuario; onLog
                             <Badge variant={prof.regimeTrabalho === 'DE' ? 'default' : 'outline'}>{prof.regimeTrabalho}</Badge>
                           </TableCell>
                           <TableCell>{prof.areaAtuacao}</TableCell>
-                          <TableCell className="text-right">
-                            <Button variant="ghost" size="icon" onClick={() => openProfEdit(prof)}>
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                            <Button variant="ghost" size="icon" className="text-destructive" onClick={() => deleteProf(prof.id)}>
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </TableCell>
+                          {isAdmin && (
+                            <TableCell className="text-right">
+                              <Button variant="ghost" size="icon" onClick={() => openProfEdit(prof)}>
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                              <Button variant="ghost" size="icon" className="text-destructive" onClick={() => deleteProf(prof.id)}>
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </TableCell>
+                          )}
                         </TableRow>
                       ))}
                     {professores.filter(p => !profSearch || p.nome.toLowerCase().includes(profSearch.toLowerCase()) || p.email.toLowerCase().includes(profSearch.toLowerCase())).length === 0 && (
-                      <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-8">Nenhum professor encontrado.</TableCell></TableRow>
+                      <TableRow><TableCell colSpan={isAdmin ? 5 : 4} className="text-center text-muted-foreground py-8">Nenhum professor encontrado.</TableCell></TableRow>
                     )}
                   </TableBody>
                 </Table>
