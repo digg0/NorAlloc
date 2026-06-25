@@ -53,6 +53,9 @@ DISCIPLINAS_ADS = [
     ("Inteligência Computacional", 80),
     ("Padrões de Projeto de Software", 80),
     ("Projeto Integrador Multidisciplinar I", 40),
+    ("Programação WEB II", 80),
+    ("Projeto Integrador II", 40),
+    ("Teste e Qualidade de Software", 40),
 ]
 
 DISCIPLINAS_REDES = [
