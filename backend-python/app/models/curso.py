@@ -1,6 +1,7 @@
 from sqlalchemy import Column
 from sqlalchemy import Integer
 from sqlalchemy import String
+from sqlalchemy import Boolean
 
 from sqlalchemy.orm import relationship
 
@@ -26,6 +27,12 @@ class Curso(Base):
     nivel = Column(
         String,
         nullable=False
+    )
+
+    ativo = Column(
+        Boolean,
+        nullable=False,
+        default=True
     )
 
     disciplinas = relationship(

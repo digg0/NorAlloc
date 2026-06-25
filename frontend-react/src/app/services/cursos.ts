@@ -1,16 +1,10 @@
 import { apiFetch } from './api';
 
-interface CursoBackend {
-  id: number;
-  nome: string;
-  nivel?: string;
-}
-
 export interface CursoUI {
   id: number;
-  sigla: string;
   nome: string;
-  nivel?: string;
+  nivel: string;
+  ativo: boolean;
 }
 
 export interface CursoFormData {
@@ -18,28 +12,28 @@ export interface CursoFormData {
   nivel: string;
 }
 
-const STOPWORDS = new Set(['e', 'de', 'da', 'do', 'das', 'dos', 'para', 'a', 'o']);
-
-function derivarSigla(nome: string): string {
-  const palavras = nome.split(/\s+/).filter(p => p && !STOPWORDS.has(p.toLowerCase()));
-  const iniciais = palavras.map(p => p[0]).join('').toUpperCase();
-  if (iniciais.length >= 2) return iniciais;
-  return nome.slice(0, 4).toUpperCase();
-}
-
-function paraUI(c: CursoBackend): CursoUI {
-  return { id: c.id, nome: c.nome, nivel: c.nivel, sigla: derivarSigla(c.nome) };
-}
-
 export async function listarCursos(): Promise<CursoUI[]> {
-  const dados = await apiFetch<CursoBackend[]>('/api/cursos');
-  return dados.map(paraUI);
+  return apiFetch<CursoUI[]>('/api/cursos');
 }
 
-export async function criarCurso(dados: CursoFormData): Promise<CursoUI> {
-  const curso = await apiFetch<CursoBackend>('/api/cursos', {
+export async function criarCurso(f: CursoFormData): Promise<CursoUI> {
+  return apiFetch<CursoUI>('/api/cursos', {
     method: 'POST',
-    body: JSON.stringify(dados),
+    body: JSON.stringify(f),
   });
-  return paraUI(curso);
+}
+
+export async function atualizarCurso(id: number, f: Partial<CursoFormData>): Promise<CursoUI> {
+  return apiFetch<CursoUI>(`/api/cursos/id/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(f),
+  });
+}
+
+export async function inativarCurso(id: number): Promise<CursoUI> {
+  return apiFetch<CursoUI>(`/api/cursos/id/${id}`, { method: 'DELETE' });
+}
+
+export async function reativarCurso(id: number): Promise<CursoUI> {
+  return apiFetch<CursoUI>(`/api/cursos/id/${id}/reativar`, { method: 'PUT' });
 }
