@@ -137,11 +137,8 @@ def importar_disciplinas_ads_redes() -> None:
             .all()
         ) if nome_por_id_antigo else []
 
-        for disciplina in antigas:
-            db.delete(disciplina)
-        db.flush()
-
-        # 2. Insere a matriz real.
+        # 2. Insere a matriz real (antes de apagar as antigas, para poder
+        # remapear as ofertas afetadas sem violar a FK ofertas->disciplina).
         novo_id_por_nome = {}
         for curso, disciplinas in ((curso_ads, DISCIPLINAS_ADS), (curso_redes, DISCIPLINAS_REDES)):
             for nome, carga in disciplinas:
@@ -152,7 +149,8 @@ def importar_disciplinas_ads_redes() -> None:
 
         # 3. Remapeia as ofertas afetadas por nome; remove as que não têm
         # correspondência na matriz real (ex.: "Redes de Computadores" em
-        # Redes, que não existe nessa matriz).
+        # Redes, que não existe nessa matriz) — sempre antes de apagar a
+        # disciplina antiga, já que ofertas_disciplina tem FK para ela.
         for oferta in ofertas_afetadas:
             nome_antigo = nome_por_id_antigo.get(oferta.disciplina_id)
             turma = oferta.turma
@@ -163,6 +161,12 @@ def importar_disciplinas_ads_redes() -> None:
             else:
                 db.query(Alocacao).filter(Alocacao.oferta_id == oferta.id).delete(synchronize_session=False)
                 db.delete(oferta)
+        db.flush()
+
+        # 1. Só agora remove as disciplinas de teste, já sem nenhuma oferta
+        # apontando para elas.
+        for disciplina in antigas:
+            db.delete(disciplina)
 
         db.commit()
         print("Disciplinas reais de ADS e Redes de Computadores importadas com sucesso.")
