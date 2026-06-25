@@ -4,12 +4,15 @@ Cria os 3 usuários de demonstração (admin, coordenador e professor) caso aind
 não existam, usando as MESMAS credenciais do mock do frontend para facilitar o
 teste da integração de login. As senhas são gravadas já com hash bcrypt.
 """
+from datetime import time as dt_time
+
 from app.core.database import SessionLocal
 from app.core.security import get_password_hash
 from app.core.curriculos import seed_curriculos
 from app.models.usuario import Usuario
 from app.models.professor import Professor
 from app.models.coordenador import Coordenador
+from app.models.horario import Horario
 
 # (nome, email, senha, tipo)
 USUARIOS_DEMO = [
@@ -70,6 +73,28 @@ def seed_usuarios_demo() -> None:
                     tipo="COORDENADOR",
                 ))
                 criados += 1
+
+        # Horários padrão IFCE: M1-M5 (manhã), T1-T5 (tarde), N1-N4 (noite).
+        if db.query(Horario).count() == 0:
+            slots = [
+                ("MANHA", dt_time(7, 0), dt_time(7, 50)),
+                ("MANHA", dt_time(7, 50), dt_time(8, 40)),
+                ("MANHA", dt_time(9, 0), dt_time(9, 50)),
+                ("MANHA", dt_time(9, 50), dt_time(10, 40)),
+                ("MANHA", dt_time(10, 40), dt_time(11, 30)),
+                ("TARDE", dt_time(13, 0), dt_time(13, 50)),
+                ("TARDE", dt_time(13, 50), dt_time(14, 40)),
+                ("TARDE", dt_time(15, 0), dt_time(15, 50)),
+                ("TARDE", dt_time(15, 50), dt_time(16, 40)),
+                ("TARDE", dt_time(16, 40), dt_time(17, 30)),
+                ("NOITE", dt_time(18, 30), dt_time(19, 20)),
+                ("NOITE", dt_time(19, 20), dt_time(20, 10)),
+                ("NOITE", dt_time(20, 20), dt_time(21, 10)),
+                ("NOITE", dt_time(21, 10), dt_time(22, 0)),
+            ]
+            for turno, inicio, fim in slots:
+                db.add(Horario(turno=turno, hora_inicio=inicio, hora_fim=fim))
+            criados += len(slots)
 
         if criados:
             db.commit()

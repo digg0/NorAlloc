@@ -13,7 +13,7 @@ from app.schemas.professor import (
 from app.api.routers.auth import obter_usuario_atual
 
 router = APIRouter(
-    prefix="/api/professores",
+    prefix="/api/preferencias-aula",
     tags=["Módulo de Preferências dos Professores"]
 )
 

@@ -31,6 +31,20 @@ def listar_professores(db: Session = Depends(get_db)):
 
 
 @router.get(
+    "/me",
+    response_model=ProfessorResponse,
+)
+def meu_perfil_professor(
+    usuario: Usuario = Depends(obter_usuario_atual),
+    db: Session = Depends(get_db),
+):
+    prof = db.query(Professor).filter(Professor.email == usuario.email).first()
+    if not prof:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Cadastro de professor não encontrado para este usuário.")
+    return prof
+
+
+@router.get(
     "/{professor_id}",
     response_model=ProfessorResponse,
     dependencies=[Depends(verificar_admin_ou_coordenador)]

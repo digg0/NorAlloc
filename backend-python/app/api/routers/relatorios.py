@@ -4,13 +4,12 @@ from typing import List
 
 from app.core.database import get_db
 from app.schemas.relatorio import RelatorioResponse
-
-# Importação dos modelos exatamente como definidos no seu projeto
-from app.models import Curso, Semestre, Turma, OfertaDisciplina, Alocacao 
+from app.models import Curso, Semestre, Turma, OfertaDisciplina, Alocacao
+from app.api.routers.auth import verificar_admin_ou_coordenador
 
 router = APIRouter(prefix="/api/relatorios", tags=["Módulo de Relatórios"])
 
-@router.get("/curso/{curso_id}/semestre/{semestre_id}", response_model=RelatorioResponse)
+@router.get("/curso/{curso_id}/semestre/{semestre_id}", response_model=RelatorioResponse, dependencies=[Depends(verificar_admin_ou_coordenador)])
 def emitir_relatorio(curso_id: int, semestre_id: int, db: Session = Depends(get_db)):
     
     # 1. Buscar as entidades principais
@@ -73,7 +72,7 @@ def emitir_relatorio(curso_id: int, semestre_id: int, db: Session = Depends(get_
     return {
         "curso": curso.nome,
         # Ajuste 'semestre_numero' e 'ano' de acordo com as propriedades do seu modelo Semestre
-        "semestre": f"{getattr(semestre, 'ano', '0000')}.{getattr(semestre, 'semestre_numero', '0')}", 
+        "semestre": semestre.nome, 
         "resumo": {
             "turmas": len(turmas_db),
             "disciplinas": len(set_disciplinas),
