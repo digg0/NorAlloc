@@ -49,22 +49,23 @@ DISCIPLINAS = [
     ("Redes de Computadores", "REDES DE COMPUTADORES", 4),
 ]
 
-# Grade-padrão (IFCE Campus Tauá): 4 aulas de manhã, 4 de tarde, 5 de noite.
-# (turno, hora_inicio, hora_fim) — apenas slots de AULA (intervalo/almoço não
-# são Horario, são só os espaços em branco entre eles).
+# Grade-padrão oficial (NORMAS.pdf, IFCE Campus Tauá): 4 aulas de manhã,
+# 4 de tarde, 5 de noite. (turno, hora_inicio, hora_fim) — apenas slots de
+# AULA (intervalo/almoço não são Horario, são só os espaços em branco
+# entre eles).
 SLOTS_PADRAO = [
     ("MANHA", datetime.time(7, 25), datetime.time(8, 25)),
     ("MANHA", datetime.time(8, 25), datetime.time(9, 25)),
-    # intervalo 09:25–09:50
-    ("MANHA", datetime.time(9, 50), datetime.time(10, 50)),
-    ("MANHA", datetime.time(10, 50), datetime.time(11, 50)),
-    # almoço 11:50–13:00
+    # intervalo 09:25–09:45
+    ("MANHA", datetime.time(9, 45), datetime.time(10, 45)),
+    ("MANHA", datetime.time(10, 45), datetime.time(11, 45)),
+    # almoço 11:45–13:00
     ("TARDE", datetime.time(13, 0), datetime.time(14, 0)),
     ("TARDE", datetime.time(14, 0), datetime.time(15, 0)),
-    # intervalo 15:00–15:25
-    ("TARDE", datetime.time(15, 25), datetime.time(16, 25)),
-    ("TARDE", datetime.time(16, 25), datetime.time(17, 25)),
-    # janta 17:25–18:20
+    # intervalo 15:00–15:20
+    ("TARDE", datetime.time(15, 20), datetime.time(16, 20)),
+    ("TARDE", datetime.time(16, 20), datetime.time(17, 20)),
+    # janta 17:20–18:20
     ("NOITE", datetime.time(18, 20), datetime.time(19, 10)),
     ("NOITE", datetime.time(19, 10), datetime.time(20, 0)),
     # intervalo 20:00–20:10

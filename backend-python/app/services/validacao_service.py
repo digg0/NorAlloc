@@ -10,6 +10,7 @@ from typing import Dict, List, Optional, Tuple
 
 from sqlalchemy.orm import Session
 
+from app.core.regras_carga import creditos_para_horas
 from app.models.alocacao import Alocacao
 from app.models.horario import Horario
 from app.models.oferta_disciplina import OfertaDisciplina
@@ -139,20 +140,37 @@ def validar_semestre(semestre_id: int, db: Session, curso_id: Optional[int] = No
                 }
             )
 
-    # Sobrecarga: professor acima da carga máxima.
+    # Sobrecarga: professor acima da carga máxima — considera TODAS as
+    # ofertas dele no semestre, mesmo em outros cursos (não só o curso
+    # filtrado por `curso_id`), e converte créditos em horas pela regra de
+    # 50 min/crédito do NORMAS.pdf.
     carga_por_professor: Dict[int, int] = defaultdict(int)
-    for o in ofertas:
-        if o.professor_id:
-            carga_por_professor[o.professor_id] += o.carga_horaria or 0
-    for professor_id, carga in carga_por_professor.items():
+    if professor_ids:
+        todas_ofertas_professores = (
+            db.query(OfertaDisciplina.professor_id, OfertaDisciplina.carga_horaria)
+            .join(Turma, OfertaDisciplina.turma_id == Turma.id)
+            .filter(
+                Turma.semestre_id == semestre_id,
+                OfertaDisciplina.professor_id.in_(professor_ids),
+            )
+            .all()
+        )
+        for professor_id, carga in todas_ofertas_professores:
+            carga_por_professor[professor_id] += carga or 0
+
+    for professor_id, creditos in carga_por_professor.items():
         professor = professores.get(professor_id)
-        if professor and professor.carga_maxima and carga > professor.carga_maxima:
+        if not professor or not professor.carga_maxima:
+            continue
+        horas = creditos_para_horas(creditos)
+        if horas > professor.carga_maxima:
             alertas.append(
                 {
                     "tipo": "SOBRECARGA",
                     "descricao": (
-                        f"Professor {professor.nome} está com {carga}h ofertadas, acima do "
-                        f"limite de {professor.carga_maxima}h."
+                        f"Professor {professor.nome} está com {horas:.1f}h ofertadas "
+                        f"({creditos} aulas/semana) no semestre, acima do limite de "
+                        f"{professor.carga_maxima}h."
                     ),
                     "entidade_tipo": "professor",
                     "entidade_id": professor_id,

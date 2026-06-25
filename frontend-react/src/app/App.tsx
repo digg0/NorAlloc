@@ -14,6 +14,7 @@ import { login as apiLogin, logout as apiLogout, getSessao, type SessaoUsuario }
 import { listarProfessores, criarProfessor, atualizarProfessor, removerProfessor } from './services/professores';
 import { getResumoGeral, getResumoProfessor, type ResumoGeral, type ResumoProfessor } from './services/dashboard';
 import { CursosView } from './components/CursosView';
+import { CoordenadoresView } from './components/CoordenadoresView';
 import { TurmasView } from './components/TurmasView';
 import { DisciplinasView } from './components/DisciplinasView';
 import { getMeuCoordenador, type MeuCoordenadorUI } from './services/coordenadorAtual';
@@ -190,7 +191,6 @@ TableCell.displayName = 'TableCell';
 type RegimeTrabalho = 'DE' | '20H' | '40H';
 
 type Professor = { id: number; nome: string; email: string; regimeTrabalho: RegimeTrabalho; areaAtuacao: string };
-type Coordenador = { id: number; nome: string; email: string; senha: string; departamento: string; ativo: boolean };
 
 // ── Mock Data ──────────────────────────────────────────────────────────────────
 
@@ -199,12 +199,6 @@ const MOCK_PROFESSORES: Professor[] = [
   { id: 2, nome: 'Carlos Santos', email: 'carlos.santos@ifce.edu.br', regimeTrabalho: '40H', areaAtuacao: 'Matemática' },
   { id: 3, nome: 'Beatriz Costa', email: 'beatriz.costa@ifce.edu.br', regimeTrabalho: 'DE', areaAtuacao: 'Redes' },
   { id: 4, nome: 'João Oliveira', email: 'joao.oliveira@ifce.edu.br', regimeTrabalho: '20H', areaAtuacao: 'Computação' },
-];
-
-const MOCK_COORDENADORES_INICIAL: Coordenador[] = [
-  { id: 1, nome: 'Saulo Anderson', email: 'saulo.anderson@ifce.edu.br', senha: '123456', departamento: 'Análise e Desenvolvimento de Sistemas', ativo: true },
-  { id: 2, nome: 'Marcos Freitas', email: 'marcos.freitas@ifce.edu.br', senha: 'coord01', departamento: 'Redes de Computadores', ativo: true },
-  { id: 3, nome: 'Carla Mendes', email: 'carla.mendes@ifce.edu.br', senha: 'coord02', departamento: 'Agropecuária', ativo: false },
 ];
 
 // ── Time Slot Constants ────────────────────────────────────────────────────────
@@ -653,7 +647,6 @@ function AppShell({ currentUser, onLogout }: { currentUser: SessaoUsuario; onLog
 
   // ── Search state per view ─────────────────────────────────────────────────
   const [profSearch, setProfSearch] = useState('');
-  const [coordSearch, setCoordSearch] = useState('');
 
   // ── Professor CRUD ────────────────────────────────────────────────────────
   type ProfForm = Omit<Professor, 'id'>;
@@ -688,27 +681,6 @@ function AppShell({ currentUser, onLogout }: { currentUser: SessaoUsuario; onLog
     }
   };
 
-  // ── Coordenadores CRUD (admin only) ───────────────────────────────────────
-  const [coordenadores, setCoordenadores] = useState<Coordenador[]>(MOCK_COORDENADORES_INICIAL);
-  const [coordModal, setCoordModal] = useState<{ open: boolean; editId: number | null }>({ open: false, editId: null });
-  const [coordForm, setCoordForm] = useState<Omit<Coordenador, 'id'>>({ nome: '', email: '', senha: '', departamento: '', ativo: true });
-  const [coordFormError, setCoordFormError] = useState('');
-  const [coordShowSenha, setCoordShowSenha] = useState(false);
-
-  const openCoordAdd = () => { setCoordForm({ nome: '', email: '', senha: '', departamento: '', ativo: true }); setCoordFormError(''); setCoordShowSenha(false); setCoordModal({ open: true, editId: null }); };
-  const openCoordEdit = (c: Coordenador) => { setCoordForm({ nome: c.nome, email: c.email, senha: c.senha, departamento: c.departamento, ativo: c.ativo }); setCoordFormError(''); setCoordShowSenha(false); setCoordModal({ open: true, editId: c.id }); };
-  const saveCoord = () => {
-    if (!coordForm.nome.trim() || !coordForm.email.trim() || !coordForm.senha.trim()) { setCoordFormError('Nome, e-mail e senha são obrigatórios.'); return; }
-    if (coordModal.editId !== null) {
-      setCoordenadores(cs => cs.map(c => c.id === coordModal.editId ? { ...c, ...coordForm } : c));
-    } else {
-      const nextId = Math.max(0, ...coordenadores.map(c => c.id)) + 1;
-      setCoordenadores(cs => [...cs, { id: nextId, ...coordForm }]);
-    }
-    setCoordModal({ open: false, editId: null });
-  };
-  const deleteCoord = (id: number) => setCoordenadores(cs => cs.filter(c => c.id !== id));
-  const toggleCoordAtivo = (id: number) => setCoordenadores(cs => cs.map(c => c.id === id ? { ...c, ativo: !c.ativo } : c));
 
   // ── Novo Semestre (wizard simplificado: só cria o semestre, de verdade) ────
   const emptyNovoSemestreForm: SemestreFormData = { nome: '', dataInicio: '', dataFim: '', status: 'PLANEJAMENTO' };
@@ -1346,73 +1318,11 @@ function AppShell({ currentUser, onLogout }: { currentUser: SessaoUsuario; onLog
           {/* ── COORDENADORES ─────────────────────────────────────────── */}
           {currentView === 'coordenadores' && isAdmin && (
             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6 max-w-5xl mx-auto">
-              <div className="flex items-center justify-between gap-4 flex-wrap">
-                <div>
-                  <h2 className="text-2xl font-bold tracking-tight">Coordenadores</h2>
-                  <p className="text-muted-foreground">Gerencie as contas de acesso dos coordenadores de curso.</p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="relative">
-                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                    <Input type="search" placeholder="Buscar coordenador..." className="pl-8 h-9 w-56" value={coordSearch} onChange={e => setCoordSearch(e.target.value)} />
-                  </div>
-                  <Button onClick={openCoordAdd}>
-                    <Plus className="mr-2 h-4 w-4" />Novo Coordenador
-                  </Button>
-                </div>
+              <div>
+                <h2 className="text-2xl font-bold tracking-tight">Coordenadores</h2>
+                <p className="text-muted-foreground">Coordenadores são docentes da instituição designados para gerir um curso.</p>
               </div>
-              <Card>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Nome</TableHead>
-                      <TableHead>E-mail</TableHead>
-                      <TableHead>Departamento</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead className="text-right">Ações</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {coordenadores
-                      .filter(c => !coordSearch || c.nome.toLowerCase().includes(coordSearch.toLowerCase()) || c.email.toLowerCase().includes(coordSearch.toLowerCase()))
-                      .map(c => (
-                        <TableRow key={c.id}>
-                          <TableCell className="font-medium">
-                            <div className="flex items-center gap-2">
-                              <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center text-primary text-xs font-bold">{c.nome.charAt(0)}</div>
-                              {c.nome}
-                            </div>
-                          </TableCell>
-                          <TableCell className="text-muted-foreground text-sm">{c.email}</TableCell>
-                          <TableCell className="text-sm">{c.departamento}</TableCell>
-                          <TableCell>
-                            <button
-                              onClick={() => toggleCoordAtivo(c.id)}
-                              className={cn(
-                                'inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold border transition-colors cursor-pointer',
-                                c.ativo ? 'border-green-200 bg-green-50 text-green-700 hover:bg-green-100' : 'border-gray-200 bg-gray-50 text-gray-500 hover:bg-gray-100'
-                              )}
-                            >
-                              {c.ativo ? 'Ativo' : 'Inativo'}
-                            </button>
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <Button variant="ghost" size="icon" onClick={() => openCoordEdit(c)}>
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                            <Button variant="ghost" size="icon" className="text-destructive" onClick={() => deleteCoord(c.id)}>
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    {coordenadores.filter(c => !coordSearch || c.nome.toLowerCase().includes(coordSearch.toLowerCase()) || c.email.toLowerCase().includes(coordSearch.toLowerCase())).length === 0 && (
-                      <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-10">Nenhum coordenador encontrado.</TableCell></TableRow>
-                    )}
-                  </TableBody>
-                </Table>
-              </Card>
-              <p className="text-xs text-muted-foreground">Coordenadores têm acesso ao módulo de semestres, ofertas, restrições e simulação de alocação.</p>
+              <CoordenadoresView />
             </motion.div>
           )}
 
@@ -1981,83 +1891,6 @@ function AppShell({ currentUser, onLogout }: { currentUser: SessaoUsuario; onLog
                   <div className="px-6 py-4 border-t flex justify-end gap-2 bg-muted/30">
                     <Button variant="outline" onClick={() => setProfModal({ open: false, editId: null })}>Cancelar</Button>
                     <Button onClick={saveProf}><Check className="mr-2 h-4 w-4" />{profModal.editId !== null ? 'Salvar alterações' : 'Cadastrar'}</Button>
-                  </div>
-                </motion.div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-
-          {/* Coordenador Modal */}
-          <AnimatePresence>
-            {coordModal.open && (
-              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/40 backdrop-blur-[2px] flex items-center justify-center z-50 p-4">
-                <motion.div initial={{ scale: 0.95, y: 12 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.95, y: 12 }} className="bg-background rounded-xl shadow-2xl w-full max-w-md overflow-hidden border">
-                  <div className="flex items-center justify-between px-6 py-4 border-b">
-                    <div>
-                      <h3 className="font-semibold text-base">{coordModal.editId !== null ? 'Editar coordenador' : 'Novo coordenador'}</h3>
-                      <p className="text-xs text-muted-foreground mt-0.5">{coordModal.editId !== null ? 'Altere os dados do coordenador.' : 'Preencha os dados para criar o acesso.'}</p>
-                    </div>
-                    <Button variant="ghost" size="icon" onClick={() => setCoordModal({ open: false, editId: null })}>
-                      <X className="h-4 w-4" />
-                    </Button>
-                  </div>
-                  <div className="p-6 space-y-4">
-                    {coordFormError && (
-                      <div className="flex items-center gap-2 px-3 py-2.5 bg-destructive/10 border border-destructive/20 rounded-lg">
-                        <AlertCircle className="h-4 w-4 text-destructive shrink-0" />
-                        <p className="text-xs text-destructive">{coordFormError}</p>
-                      </div>
-                    )}
-                    <div>
-                      <Label className="text-xs mb-1.5 block">Nome completo <span className="text-destructive">*</span></Label>
-                      <Input value={coordForm.nome} onChange={e => { setCoordForm(f => ({ ...f, nome: e.target.value })); setCoordFormError(''); }} placeholder="Ex.: Maria da Silva" />
-                    </div>
-                    <div>
-                      <Label className="text-xs mb-1.5 block">E-mail institucional <span className="text-destructive">*</span></Label>
-                      <Input type="email" value={coordForm.email} onChange={e => { setCoordForm(f => ({ ...f, email: e.target.value })); setCoordFormError(''); }} placeholder="nome@ifce.edu.br" />
-                    </div>
-                    <div>
-                      <Label className="text-xs mb-1.5 block">
-                        Senha de acesso <span className="text-destructive">*</span>
-                        {coordModal.editId !== null && <span className="text-muted-foreground font-normal"> (deixe em branco para manter)</span>}
-                      </Label>
-                      <div className="relative">
-                        <Input
-                          type={coordShowSenha ? 'text' : 'password'}
-                          value={coordForm.senha}
-                          onChange={e => { setCoordForm(f => ({ ...f, senha: e.target.value })); setCoordFormError(''); }}
-                          placeholder="••••••••"
-                          className="pr-10"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => setCoordShowSenha(v => !v)}
-                          className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                        >
-                          {coordShowSenha ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                        </button>
-                      </div>
-                    </div>
-                    <div>
-                      <Label className="text-xs mb-1.5 block">Departamento / Curso</Label>
-                      <Input value={coordForm.departamento} onChange={e => setCoordForm(f => ({ ...f, departamento: e.target.value }))} placeholder="Ex.: Análise e Desenvolvimento de Sistemas" />
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <button
-                        type="button"
-                        onClick={() => setCoordForm(f => ({ ...f, ativo: !f.ativo }))}
-                        className={cn('relative w-10 h-5 rounded-full transition-colors shrink-0', coordForm.ativo ? 'bg-primary' : 'bg-muted')}
-                      >
-                        <span className={cn('absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform', coordForm.ativo ? 'translate-x-5' : 'translate-x-0.5')} />
-                      </button>
-                      <Label className="text-xs cursor-pointer" onClick={() => setCoordForm(f => ({ ...f, ativo: !f.ativo }))}>
-                        Conta {coordForm.ativo ? 'ativa' : 'inativa'}
-                      </Label>
-                    </div>
-                  </div>
-                  <div className="px-6 py-4 border-t flex justify-end gap-2 bg-muted/30">
-                    <Button variant="outline" onClick={() => setCoordModal({ open: false, editId: null })}>Cancelar</Button>
-                    <Button onClick={saveCoord}><Check className="mr-2 h-4 w-4" />{coordModal.editId !== null ? 'Salvar alterações' : 'Criar coordenador'}</Button>
                   </div>
                 </motion.div>
               </motion.div>

@@ -245,8 +245,31 @@ def seed_docentes_reais() -> None:
                 )
             )
 
+        # 5. Coordenador de curso tem carga de ensino reduzida — o NORMAS.pdf
+        # diz "preferencialmente 10h semanais quando possível" (não é
+        # obrigatório que ele dê aula, mas se der, o limite é menor que o
+        # dos demais docentes, que ficam com 20h).
+        for nome_docente, _curso_nome in COORDENADORES_POR_CURSO:
+            professores_por_nome[nome_docente].carga_maxima = 10
+
+        # 6. Garante login para todos os docentes que ainda não têm conta
+        # (os 6 coordenadores já têm, criada no passo 4). Senha padrão:
+        # primeiro nome (sem acento, minúsculo) + "123".
+        for nome, _data_str in DOCENTES:
+            professor = professores_por_nome[nome]
+            if professor.usuario_id:
+                continue
+            primeiro_nome = _slug(nome.split()[0])
+            senha_hash = get_password_hash(f"{primeiro_nome}123")
+            usuario = db.query(Usuario).filter(Usuario.email == professor.email).first()
+            if not usuario:
+                usuario = Usuario(nome=professor.nome, email=professor.email, senha=senha_hash, tipo="PROFESSOR")
+                db.add(usuario)
+                db.flush()
+            professor.usuario_id = usuario.id
+
         db.commit()
-        print("Docentes reais inseridos e coordenadores vinculados com sucesso.")
+        print("Docentes reais inseridos, logins criados e coordenadores vinculados com sucesso.")
     finally:
         db.close()
 

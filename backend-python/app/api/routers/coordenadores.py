@@ -18,6 +18,28 @@ def verificar_admin():
     pass # Permite testar os endpoints agora
 # ---------------------------------------------------------
 
+
+def _obter_ou_criar_usuario_do_professor(professor: Professor, db: Session) -> Usuario:
+    """Garante que o professor tenha uma conta de login, criando uma se
+    necessário (e-mail é obrigatório nesse caso)."""
+    if professor.usuario_id:
+        usuario = db.query(Usuario).filter(Usuario.id == professor.usuario_id).first()
+        if usuario:
+            return usuario
+    if not professor.email:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Este professor não tem e-mail cadastrado; não é possível criar o login de coordenador.",
+        )
+    usuario = db.query(Usuario).filter(Usuario.email == professor.email).first()
+    if not usuario:
+        usuario = Usuario(nome=professor.nome, email=professor.email, senha=get_password_hash("trocar123"), tipo="PROFESSOR")
+        db.add(usuario)
+        db.flush()
+    professor.usuario_id = usuario.id
+    return usuario
+
+
 @router.get("/me", response_model=CoordenadorResponse)
 def meu_coordenador(usuario: Usuario = Depends(obter_usuario_atual), db: Session = Depends(get_db)):
     """Retorna o registro de coordenador do usuário logado (usado pelo
@@ -32,50 +54,37 @@ def meu_coordenador(usuario: Usuario = Depends(obter_usuario_atual), db: Session
 
 @router.get("", response_model=List[CoordenadorResponse], dependencies=[Depends(verificar_admin)])
 def listar_coordenadores(db: Session = Depends(get_db)):
-    """Lista todos os coordenadores ativos."""
+    """Lista todos os coordenadores ativos (sempre docentes reais — ver professor_id)."""
     return db.query(Coordenador).filter(Coordenador.ativo == True).all()
 
 
 @router.post("", response_model=CoordenadorResponse, status_code=status.HTTP_201_CREATED, dependencies=[Depends(verificar_admin)])
 def criar_coordenador(coord_in: CoordenadorCreate, db: Session = Depends(get_db)):
-    """Cria o acesso de login para um coordenador e vincula-o a um curso.
+    """Torna um professor já cadastrado coordenador de um curso.
 
-    Cria também a conta em `usuarios` (tipo COORDENADOR), pois o login em
-    /api/auth/login é feito sempre contra essa tabela — sem isso, o
-    coordenador nunca conseguiria autenticar.
+    Reaproveita a conta de login do professor (ou cria uma, se ele ainda
+    não tiver), passando o tipo dela para COORDENADOR — coordenadores são
+    docentes da instituição, não contas avulsas.
     """
-
-    if coord_in.professor_id is not None and not db.query(Professor).filter(Professor.id == coord_in.professor_id).first():
+    professor = db.query(Professor).filter(Professor.id == coord_in.professor_id).first()
+    if not professor:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Professor não encontrado.")
 
-    if db.query(Coordenador).filter(Coordenador.email == coord_in.email).first():
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Este e-mail já está em uso.")
+    if db.query(Coordenador).filter(Coordenador.professor_id == professor.id, Coordenador.ativo == True).first():
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Este professor já é coordenador.")
 
-    senha_hash = get_password_hash(coord_in.password)
-
-    novo_usuario = db.query(Usuario).filter(Usuario.email == coord_in.email).first()
-    if novo_usuario:
-        # E-mail já existe como Usuario (ex.: o professor já tinha conta) —
-        # reaproveita a conta e só garante que o tipo passe a ser coordenador.
-        novo_usuario.senha = senha_hash
-        novo_usuario.tipo = "COORDENADOR"
-    else:
-        novo_usuario = Usuario(
-            nome=coord_in.nome,
-            email=coord_in.email,
-            senha=senha_hash,
-            tipo="COORDENADOR",
-        )
-        db.add(novo_usuario)
-    db.flush()  # garante novo_usuario.id sem precisar commitar ainda
+    usuario = _obter_ou_criar_usuario_do_professor(professor, db)
+    usuario.tipo = "COORDENADOR"
+    senha_hash = get_password_hash(coord_in.password) if coord_in.password else usuario.senha
+    usuario.senha = senha_hash
 
     novo_coord = Coordenador(
-        nome=coord_in.nome,
-        email=coord_in.email,
+        nome=professor.nome,
+        email=professor.email,
         curso_id=coord_in.curso_id,
-        professor_id=coord_in.professor_id,
+        professor_id=professor.id,
         hashed_password=senha_hash,
-        usuario_id=novo_usuario.id,
+        usuario_id=usuario.id,
     )
 
     db.add(novo_coord)
@@ -86,37 +95,53 @@ def criar_coordenador(coord_in: CoordenadorCreate, db: Session = Depends(get_db)
 
 @router.put("/{coordenador_id}", response_model=CoordenadorResponse, dependencies=[Depends(verificar_admin)])
 def atualizar_coordenador(coordenador_id: int, coord_in: CoordenadorUpdate, db: Session = Depends(get_db)):
-    """Modifica informações do coordenador ou altera o curso associado.
-
-    Mantém a conta em `usuarios` sincronizada (nome/e-mail/senha), já que o
-    login do coordenador depende dela.
-    """
+    """Altera o curso do coordenador, a senha, ou substitui qual professor
+    coordena o curso (revertendo o login do professor anterior para
+    PROFESSOR e promovendo o novo para COORDENADOR)."""
 
     db_coord = db.query(Coordenador).filter(Coordenador.id == coordenador_id, Coordenador.ativo == True).first()
     if not db_coord:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Coordenador não encontrado.")
+
+    update_data = coord_in.model_dump(exclude_unset=True)
+
+    if "curso_id" in update_data:
+        db_coord.curso_id = update_data["curso_id"]
+
+    if "professor_id" in update_data and update_data["professor_id"] != db_coord.professor_id:
+        novo_professor = db.query(Professor).filter(Professor.id == update_data["professor_id"]).first()
+        if not novo_professor:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Professor não encontrado.")
+        if db.query(Coordenador).filter(Coordenador.professor_id == novo_professor.id, Coordenador.ativo == True).first():
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Este professor já é coordenador.")
+
+        usuario_antigo = (
+            db.query(Usuario).filter(Usuario.id == db_coord.usuario_id).first()
+            if db_coord.usuario_id
+            else None
+        )
+        if usuario_antigo:
+            usuario_antigo.tipo = "PROFESSOR"
+
+        novo_usuario = _obter_ou_criar_usuario_do_professor(novo_professor, db)
+        novo_usuario.tipo = "COORDENADOR"
+
+        db_coord.professor_id = novo_professor.id
+        db_coord.nome = novo_professor.nome
+        db_coord.email = novo_professor.email
+        db_coord.usuario_id = novo_usuario.id
+        db_coord.hashed_password = novo_usuario.senha
 
     usuario = (
         db.query(Usuario).filter(Usuario.id == db_coord.usuario_id).first()
         if db_coord.usuario_id
         else None
     )
-
-    update_data = coord_in.model_dump(exclude_unset=True)
-
-    if "email" in update_data and update_data["email"] != db_coord.email:
-        if db.query(Usuario).filter(Usuario.email == update_data["email"]).first():
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Este e-mail já está em uso.")
-
-    for campo, valor in update_data.items():
-        if campo == "password":
-            db_coord.hashed_password = get_password_hash(valor)
-            if usuario:
-                usuario.senha = db_coord.hashed_password
-        else:
-            setattr(db_coord, campo, valor)
-            if usuario and campo in ("nome", "email"):
-                setattr(usuario, campo, valor)
+    if "password" in update_data and update_data["password"]:
+        senha_hash = get_password_hash(update_data["password"])
+        db_coord.hashed_password = senha_hash
+        if usuario:
+            usuario.senha = senha_hash
 
     db.commit()
     db.refresh(db_coord)
@@ -125,11 +150,20 @@ def atualizar_coordenador(coordenador_id: int, coord_in: CoordenadorUpdate, db: 
 
 @router.delete("/{coordenador_id}", status_code=status.HTTP_204_NO_CONTENT, dependencies=[Depends(verificar_admin)])
 def deletar_coordenador(coordenador_id: int, db: Session = Depends(get_db)):
-    """Remove o acesso do coordenador (Soft delete para auditoria)."""
+    """Remove o acesso do coordenador (Soft delete para auditoria).
+
+    O professor continua cadastrado — só deixa de ser coordenador; o login
+    dele volta a ser de PROFESSOR.
+    """
 
     db_coord = db.query(Coordenador).filter(Coordenador.id == coordenador_id, Coordenador.ativo == True).first()
     if not db_coord:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Coordenador não encontrado.")
+
+    if db_coord.usuario_id:
+        usuario = db.query(Usuario).filter(Usuario.id == db_coord.usuario_id).first()
+        if usuario:
+            usuario.tipo = "PROFESSOR"
 
     db_coord.ativo = False
     db.commit()

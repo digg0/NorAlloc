@@ -6,7 +6,10 @@ turmas, e preferências dos professores.
 Restrições *hard* (obrigatórias): carga horária semanal exata de cada oferta,
 sem dois compromissos do mesmo professor no mesmo horário, sem duas
 disciplinas da mesma turma no mesmo horário, professor afastado nunca recebe
-aula, e o limite de aulas por dia (`max_aulas_dia`) quando informado.
+aula, o limite de aulas por dia (`max_aulas_dia`) quando informado, e o
+limite de carga horária semanal do professor (`Professor.carga_maxima`,
+NORMAS.pdf) somando o que ele já está alocado em OUTROS cursos no mesmo
+semestre — não só o que está sendo gerado agora.
 
 Restrições *soft* (preferências, maximizadas via z3.Optimize): evitar
 sexta-feira, preferir manhã, preferir blocos duplos (aulas em horários
@@ -36,6 +39,7 @@ from typing import Dict, List, Optional, Tuple
 from sqlalchemy.orm import Session
 from z3 import And, Bool, If, Not, Optimize, Sum, is_true, sat
 
+from app.core.regras_carga import max_creditos_semanais
 from app.models.alocacao import Alocacao
 from app.models.disponibilidade import Restricao
 from app.models.disponibilidade_turma import DisponibilidadeTurma
@@ -172,6 +176,24 @@ def gerar_grade(semestre_id: int, db: Session, curso_id: Optional[int] = None) -
         for professor_id, horario_id in outras_alocacoes:
             ocupados_externos[professor_id].add(horario_id)
 
+    # Carga (em créditos/aulas semanais) que cada professor já tem
+    # comprometida em ofertas de OUTROS cursos no mesmo semestre — conta
+    # contra o limite de carga_maxima dele mesmo fora deste curso/turma.
+    carga_externa_professor: Dict[int, int] = defaultdict(int)
+    if professor_ids:
+        outras_ofertas = (
+            db.query(OfertaDisciplina.professor_id, OfertaDisciplina.carga_horaria)
+            .join(Turma, OfertaDisciplina.turma_id == Turma.id)
+            .filter(
+                Turma.semestre_id == semestre_id,
+                Turma.id.notin_(turma_ids),
+                OfertaDisciplina.professor_id.in_(professor_ids),
+            )
+            .all()
+        )
+        for professor_id, carga in outras_ofertas:
+            carga_externa_professor[professor_id] += carga or 0
+
     preferencias_map = (
         {
             p.professor_id: p
@@ -213,6 +235,33 @@ def gerar_grade(semestre_id: int, db: Session, curso_id: Optional[int] = None) -
                 "Não há horários elegíveis suficientes para atender a carga horária de: "
                 f"{descricao}. Revise disponibilidades, afastamentos e cadastro de horários."
             ),
+            total_alocacoes=0,
+        )
+
+    # Checagem prévia do limite de carga semanal (NORMAS.pdf): número de
+    # créditos pedidos neste curso + o que o professor já tem em outros
+    # cursos não pode passar do equivalente em créditos de carga_maxima.
+    carga_pedida_professor: Dict[int, int] = defaultdict(int)
+    for o in ofertas:
+        if o.professor_id:
+            carga_pedida_professor[o.professor_id] += o.carga_horaria
+    sobrecarregados = []
+    for professor_id, carga_pedida in carga_pedida_professor.items():
+        professor = professores.get(professor_id)
+        if not professor or not professor.carga_maxima:
+            continue
+        limite_creditos = max_creditos_semanais(professor.carga_maxima)
+        total = carga_pedida + carga_externa_professor.get(professor_id, 0)
+        if total > limite_creditos:
+            sobrecarregados.append((professor, total, limite_creditos))
+    if sobrecarregados:
+        descricao = "; ".join(
+            f"{p.nome}: {total} créditos solicitados (limite {limite} para {p.carga_maxima}h/semana)"
+            for p, total, limite in sobrecarregados
+        )
+        return GerarGradeResponse(
+            sucesso=False,
+            mensagem=f"Professor(es) acima da carga horária máxima semanal: {descricao}.",
             total_alocacoes=0,
         )
 
