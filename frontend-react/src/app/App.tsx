@@ -213,8 +213,8 @@ const SHIFTS = [
 ] as const;
 
 const SLOT_TIMES: Record<string, string> = {
-  M1: '07:25', M2: '08:25', M3: '09:50', M4: '10:50',
-  T1: '13:00', T2: '14:00', T3: '15:25', T4: '16:25',
+  M1: '07:25', M2: '08:25', M3: '09:45', M4: '10:45',
+  T1: '13:00', T2: '14:00', T3: '15:20', T4: '16:20',
   N1: '18:20', N2: '19:10', N3: '20:10', N4: '21:00', N5: '21:50',
 };
 
@@ -750,6 +750,9 @@ function AppShell({ currentUser, onLogout }: { currentUser: SessaoUsuario; onLog
     { view: 'grade',                  label: 'Grade Horária',            icon: <Play            className="mr-2 h-4 w-4" /> },
     { view: 'alertas',                label: 'Alertas',                  icon: <AlertTriangle   className="mr-2 h-4 w-4" /> },
     { view: 'relatorios',             label: 'Relatórios',               icon: <BarChart3       className="mr-2 h-4 w-4" /> },
+    // Coordenadores também são docentes da instituição — também informam a
+    // própria disponibilidade de horário, como qualquer professor.
+    { view: 'minha-disponibilidade',  label: 'Minha Disponibilidade',    icon: <CalendarCheck   className="mr-2 h-4 w-4" /> },
   ];
 
   const profNavItems: { view: View; label: string; icon: React.ReactNode }[] = [
@@ -814,17 +817,19 @@ function AppShell({ currentUser, onLogout }: { currentUser: SessaoUsuario; onLog
   };
 
   useEffect(() => {
-    if (!isProf) return;
+    // Disponibilidade vale pra qualquer docente — inclusive coordenador,
+    // que também é professor da instituição.
+    if (!isProf && !profLogado) return;
     listarSemestres()
       .then(s => {
         setDispSemestres(s);
         setDispSemestreId(prev => prev || s.find(x => x.status === 'ATIVO')?.id || s[0]?.id || 0);
       })
       .catch(() => {});
-  }, [isProf]);
+  }, [isProf, profLogado]);
 
   useEffect(() => {
-    if (!isProf || !profLogado || !dispSemestreId) return;
+    if (!profLogado || !dispSemestreId) return;
     setDispLoading(true);
     setDispErro('');
     obterDisponibilidade(profLogado.id, dispSemestreId)

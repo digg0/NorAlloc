@@ -11,9 +11,11 @@ limite de carga horária semanal do professor (`Professor.carga_maxima`,
 NORMAS.pdf) somando o que ele já está alocado em OUTROS cursos no mesmo
 semestre — não só o que está sendo gerado agora.
 
-Restrições *soft* (preferências, maximizadas via z3.Optimize): evitar
-sexta-feira, preferir manhã, preferir blocos duplos (aulas em horários
-consecutivos no mesmo dia).
+Restrições *soft* (preferências, maximizadas via z3.Optimize): preferir
+manhã, preferir blocos duplos (aulas em horários consecutivos no mesmo
+dia). O foco é aproximar a alocação da disponibilidade/preferência real do
+professor — não há penalização por dia da semana (ex.: sexta-feira não é
+evitada por padrão).
 
 Sobrecarga e janelas entre aulas não são tratadas aqui: a spec as define como
 alertas calculados dinamicamente (ver `validacao_service.py`), não como
@@ -323,8 +325,6 @@ def gerar_grade(semestre_id: int, db: Session, curso_id: Optional[int] = None) -
         peso_prioridade = prioridade.get(o.professor_id, 1)
         for h in elegiveis[o.id]:
             var = x[(o.id, h.id)]
-            if pref.evitar_sexta and h.dia_semana == "SEXTA":
-                opt.add_soft(Not(var), weight=3 * peso_prioridade)
             if pref.prefere_manha and h.turno != "MANHA":
                 opt.add_soft(Not(var), weight=2 * peso_prioridade)
 
