@@ -2,11 +2,11 @@ import React, { useState, useRef, useEffect } from 'react';
 import ifceLogo from '../imports/image.png';
 import { motion, AnimatePresence } from 'motion/react';
 import {
-  LayoutDashboard, Users, BookOpen, Calendar, Settings, Plus,
+  LayoutDashboard, Users, BookOpen, Calendar, Plus,
   ChevronRight, ChevronLeft, CheckCircle2, AlertCircle,
   Play, Save, Trash2, Search, Menu, GraduationCap, ShieldAlert,
-  Edit, X, Check, LogOut, Eye, EyeOff, Lock, Mail, Ban, Camera,
-  Clock, Star, CalendarCheck, BarChart3, ClipboardList, AlertTriangle
+  Edit, X, Check, LogOut, Eye, EyeOff, Lock, Mail, Camera,
+  Star, CalendarCheck, BarChart3, ClipboardList, AlertTriangle
 } from 'lucide-react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
@@ -23,6 +23,8 @@ import { DisponibilidadeTurmaView } from './components/DisponibilidadeTurmaView'
 import { GradeView } from './components/GradeView';
 import { AlertasView } from './components/AlertasView';
 import { RelatoriosView } from './components/RelatoriosView';
+import { listarSemestres, criarSemestre, type SemestreUI, type SemestreFormData } from './services/semestres';
+import { obterDisponibilidade, salvarDisponibilidade } from './services/disponibilidadeProfessor';
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -186,35 +188,11 @@ TableCell.displayName = 'TableCell';
 // ── Domain Types ───────────────────────────────────────────────────────────────
 
 type RegimeTrabalho = 'DE' | '20H' | '40H';
-type StatusEtapa = 'OFERTAS' | 'RESTRICOES' | 'SIMULACAO' | 'CONCLUIDO';
-type Turno = 'Manhã' | 'Tarde' | 'Noite';
 
-type Curso = { id: number; sigla: string; nome: string };
-type Turma = { id: number; codigo: string; nome: string; turno: Turno; cursoId: number };
-type Disciplina = { id: number; nome: string; sigla: string; cargaHorariaCreditos: number; cursoId: number };
 type Professor = { id: number; nome: string; email: string; regimeTrabalho: RegimeTrabalho; areaAtuacao: string };
 type Coordenador = { id: number; nome: string; email: string; senha: string; departamento: string; ativo: boolean };
-type Semestre = { id: number; nome: string; dataInicio: string; dataTermino: string; statusEtapa: StatusEtapa };
-type Oferta = { turmaId: number; disciplinaId: number };
-type Restricao = { professorId: number; horariosBloqueados: string[]; limiteCargaHoraria?: number };
 
 // ── Mock Data ──────────────────────────────────────────────────────────────────
-
-const MOCK_CURSOS: Curso[] = [
-  { id: 1, sigla: 'ADS', nome: 'Análise e Desenvolvimento de Sistemas' },
-  { id: 2, sigla: 'LETRAS', nome: 'Letras' },
-  { id: 3, sigla: 'AGRO', nome: 'Agropecuária' },
-  { id: 4, sigla: 'REDES', nome: 'Redes de Computadores' },
-  { id: 5, sigla: 'INFO', nome: 'Informática para Internet' },
-  { id: 6, sigla: 'TELE', nome: 'Telemática' },
-];
-
-const MOCK_TURMAS: Turma[] = [
-  { id: 1, codigo: 'ADS_2024.1_MAT', nome: 'ADS 2024.1 (Manhã)', turno: 'Manhã', cursoId: 1 },
-  { id: 2, codigo: 'ADS_2024.1_NOT', nome: 'ADS 2024.1 (Noite)', turno: 'Noite', cursoId: 1 },
-  { id: 3, codigo: 'REDES_2024.1_TAR', nome: 'Redes 2024.1 (Tarde)', turno: 'Tarde', cursoId: 4 },
-  { id: 4, codigo: 'INFO_2024.1_NOT', nome: 'Info.Internet 2024.1 (Noite)', turno: 'Noite', cursoId: 5 },
-];
 
 const MOCK_PROFESSORES: Professor[] = [
   { id: 1, nome: 'Ana Silva', email: 'ana.silva@ifce.edu.br', regimeTrabalho: 'DE', areaAtuacao: 'Computação' },
@@ -223,23 +201,10 @@ const MOCK_PROFESSORES: Professor[] = [
   { id: 4, nome: 'João Oliveira', email: 'joao.oliveira@ifce.edu.br', regimeTrabalho: '20H', areaAtuacao: 'Computação' },
 ];
 
-const MOCK_DISCIPLINAS: Disciplina[] = [
-  { id: 1, nome: 'Algoritmos e Estrutura de Dados', sigla: 'AED', cargaHorariaCreditos: 4, cursoId: 1 },
-  { id: 2, nome: 'Cálculo I', sigla: 'CAL1', cargaHorariaCreditos: 4, cursoId: 1 },
-  { id: 3, nome: 'Redes de Computadores', sigla: 'RC', cargaHorariaCreditos: 3, cursoId: 4 },
-  { id: 4, nome: 'Engenharia de Software', sigla: 'ES', cargaHorariaCreditos: 3, cursoId: 1 },
-  { id: 5, nome: 'Infraestrutura de Redes', sigla: 'IR', cargaHorariaCreditos: 4, cursoId: 4 },
-];
-
 const MOCK_COORDENADORES_INICIAL: Coordenador[] = [
   { id: 1, nome: 'Saulo Anderson', email: 'saulo.anderson@ifce.edu.br', senha: '123456', departamento: 'Análise e Desenvolvimento de Sistemas', ativo: true },
   { id: 2, nome: 'Marcos Freitas', email: 'marcos.freitas@ifce.edu.br', senha: 'coord01', departamento: 'Redes de Computadores', ativo: true },
   { id: 3, nome: 'Carla Mendes', email: 'carla.mendes@ifce.edu.br', senha: 'coord02', departamento: 'Agropecuária', ativo: false },
-];
-
-const MOCK_SEMESTRES: Semestre[] = [
-  { id: 1, nome: '2023.2', dataInicio: '2023-08-01', dataTermino: '2023-12-15', statusEtapa: 'CONCLUIDO' },
-  { id: 2, nome: '2024.1', dataInicio: '2024-02-01', dataTermino: '2024-06-30', statusEtapa: 'SIMULACAO' },
 ];
 
 // ── Time Slot Constants ────────────────────────────────────────────────────────
@@ -254,10 +219,14 @@ const SHIFTS = [
 ] as const;
 
 const SLOT_TIMES: Record<string, string> = {
-  M1: '07:25', M2: '08:25', M3: '09:45', M4: '10:45',
-  T1: '13:00', T2: '14:00', T3: '15:20', T4: '16:20',
+  M1: '07:25', M2: '08:25', M3: '09:50', M4: '10:50',
+  T1: '13:00', T2: '14:00', T3: '15:25', T4: '16:25',
   N1: '18:20', N2: '19:10', N3: '20:10', N4: '21:00', N5: '21:50',
 };
+
+// Todas as chaves DIA_SLOT possíveis (usadas para inverter disponível ↔ bloqueado
+// ao salvar/carregar a disponibilidade real do professor no backend).
+const ALL_DISP_KEYS = DAYS.flatMap(day => SHIFTS.flatMap(shift => shift.slots.map(slot => `${day}_${slot}`)));
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -267,118 +236,19 @@ const REGIME_LABELS: Record<RegimeTrabalho, string> = {
   '20H': '20 Horas',
 };
 
-const REGIME_MAX_CH: Record<RegimeTrabalho, string> = {
-  DE: 'Máx 20h/sem em sala',
-  '40H': 'Máx 40h/sem',
-  '20H': 'Máx 20h/sem',
-};
-
 const REGIME_MAX_HOURS: Record<RegimeTrabalho, number> = {
   DE: 20,
   '40H': 40,
   '20H': 20,
 };
 
-const ETAPA_LABELS: Record<StatusEtapa, string> = {
-  OFERTAS: 'Configurando Ofertas',
-  RESTRICOES: 'Configurando Restrições',
-  SIMULACAO: 'Simulação',
-  CONCLUIDO: 'Concluído',
-};
-
-function etapaBadgeVariant(etapa: StatusEtapa): 'default' | 'warning' | 'success' | 'secondary' {
-  if (etapa === 'CONCLUIDO') return 'success';
-  if (etapa === 'SIMULACAO') return 'default';
-  if (etapa === 'RESTRICOES') return 'warning';
-  return 'secondary';
-}
-
 function fmtDate(iso: string) {
   return new Date(iso + 'T12:00:00').toLocaleDateString('pt-BR');
-}
-
-// ── TimeSlotGrid Component ─────────────────────────────────────────────────────
-
-type TimeSlotGridProps = {
-  blocked: string[];
-  onChange: (blocked: string[]) => void;
-};
-
-function TimeSlotGrid({ blocked, onChange }: TimeSlotGridProps) {
-  const toggle = (slot: string) => {
-    onChange(blocked.includes(slot) ? blocked.filter(s => s !== slot) : [...blocked, slot]);
-  };
-
-  return (
-    <div className="overflow-x-auto">
-      <table className="text-xs border-collapse w-full">
-        <thead>
-          <tr>
-            <th className="p-1 text-left text-muted-foreground w-16">Slot</th>
-            {DAYS.map(d => (
-              <th key={d} className="p-1 text-center text-muted-foreground w-10">{DAY_LABELS[d]}</th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {SHIFTS.map(shift => (
-            <React.Fragment key={shift.id}>
-              <tr>
-                <td colSpan={7} className="pt-2 pb-0.5 px-1">
-                  <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">{shift.label}</span>
-                </td>
-              </tr>
-              {shift.slots.map(slot => {
-                const slotLabel = `${slot} · ${SLOT_TIMES[slot]}`;
-                return (
-                  <tr key={slot}>
-                    <td className="p-1 text-muted-foreground whitespace-nowrap">{slotLabel}</td>
-                    {DAYS.map(day => {
-                      const key = `${day}_${slot}`;
-                      const isBlocked = blocked.includes(key);
-                      return (
-                        <td key={day} className="p-1 text-center">
-                          <button
-                            type="button"
-                            onClick={() => toggle(key)}
-                            className={cn(
-                              'w-8 h-6 rounded text-[10px] font-medium border transition-colors',
-                              isBlocked
-                                ? 'bg-destructive/10 border-destructive/30 text-destructive hover:bg-destructive/20'
-                                : 'bg-muted border-muted hover:bg-accent'
-                            )}
-                            title={isBlocked ? 'Bloqueado — clique para liberar' : 'Livre — clique para bloquear'}
-                          >
-                            {isBlocked ? <Ban className="h-3 w-3 mx-auto" /> : null}
-                          </button>
-                        </td>
-                      );
-                    })}
-                  </tr>
-                );
-              })}
-            </React.Fragment>
-          ))}
-        </tbody>
-      </table>
-      <p className="text-xs text-muted-foreground mt-2">
-        Clique nas células para marcar horários bloqueados (vermelho = indisponível).
-      </p>
-    </div>
-  );
 }
 
 // ── Main App ───────────────────────────────────────────────────────────────────
 
 type View = 'dashboard' | 'wizard' | 'professores' | 'disciplinas' | 'semestres' | 'turmas' | 'coordenadores' | 'perfil' | 'minha-agenda' | 'minha-disponibilidade' | 'disciplinas-preferidas' | 'cursos' | 'ofertas' | 'disponibilidade-turma' | 'grade' | 'alertas' | 'relatorios';
-
-type WizardData = {
-  nome: string;
-  dataInicio: string;
-  dataTermino: string;
-  ofertas: Oferta[];
-  restricoes: Record<number, Restricao>;
-};
 
 // ── DatePicker ─────────────────────────────────────────────────────────────────
 
@@ -780,8 +650,6 @@ function AppShell({ currentUser, onLogout }: { currentUser: SessaoUsuario; onLog
       })
       .catch(() => {});
   }, [isAdmin, isProf]);
-  const [disciplinas, setDisciplinas] = useState<Disciplina[]>([...MOCK_DISCIPLINAS]);
-  const [turmas, setTurmas] = useState<Turma[]>([...MOCK_TURMAS]);
 
   // ── Search state per view ─────────────────────────────────────────────────
   const [profSearch, setProfSearch] = useState('');
@@ -820,11 +688,6 @@ function AppShell({ currentUser, onLogout }: { currentUser: SessaoUsuario; onLog
     }
   };
 
-  // Observação: as telas de Disciplinas e Turmas (CRUD real, via backend) são
-  // os componentes DisciplinasView/TurmasView. Os arrays `disciplinas`/`turmas`
-  // mock acima continuam servindo apenas o passo "Ofertas" do wizard legado
-  // (seção "Nova Simulação"), que ainda não foi integrado ao backend.
-
   // ── Coordenadores CRUD (admin only) ───────────────────────────────────────
   const [coordenadores, setCoordenadores] = useState<Coordenador[]>(MOCK_COORDENADORES_INICIAL);
   const [coordModal, setCoordModal] = useState<{ open: boolean; editId: number | null }>({ open: false, editId: null });
@@ -847,58 +710,49 @@ function AppShell({ currentUser, onLogout }: { currentUser: SessaoUsuario; onLog
   const deleteCoord = (id: number) => setCoordenadores(cs => cs.filter(c => c.id !== id));
   const toggleCoordAtivo = (id: number) => setCoordenadores(cs => cs.map(c => c.id === id ? { ...c, ativo: !c.ativo } : c));
 
-  // ── Wizard state ──────────────────────────────────────────────────────────
-  const [wizardStep, setWizardStep] = useState(1);
-  const [simulationRunning, setSimulationRunning] = useState(false);
-  const [simulationComplete, setSimulationComplete] = useState(false);
-  const [wizardData, setWizardData] = useState<WizardData>({
-    nome: '2024.2',
-    dataInicio: '2024-08-01',
-    dataTermino: '2024-12-15',
-    ofertas: [
-      { turmaId: 1, disciplinaId: 1 },
-      { turmaId: 1, disciplinaId: 2 },
-      { turmaId: 3, disciplinaId: 3 },
-    ],
-    restricoes: {},
-  });
+  // ── Novo Semestre (wizard simplificado: só cria o semestre, de verdade) ────
+  const emptyNovoSemestreForm: SemestreFormData = { nome: '', dataInicio: '', dataFim: '', status: 'PLANEJAMENTO' };
+  const [novoSemestreForm, setNovoSemestreForm] = useState<SemestreFormData>(emptyNovoSemestreForm);
+  const [novoSemestreErro, setNovoSemestreErro] = useState('');
+  const [criandoSemestre, setCriandoSemestre] = useState(false);
 
-  const [newOfertaTurma, setNewOfertaTurma] = useState<number>(0);
-  const [newOfertaDisc, setNewOfertaDisc] = useState<number>(0);
-  const [expandedProf, setExpandedProf] = useState<number | null>(null);
+  const [semestresLista, setSemestresLista] = useState<SemestreUI[]>([]);
+  const [semestresCarregando, setSemestresCarregando] = useState(true);
 
-  const runSimulation = () => {
-    setSimulationRunning(true);
-    setTimeout(() => { setSimulationRunning(false); setSimulationComplete(true); }, 2500);
+  const carregarSemestres = () => {
+    setSemestresCarregando(true);
+    listarSemestres()
+      .then(setSemestresLista)
+      .catch(() => {})
+      .finally(() => setSemestresCarregando(false));
   };
 
-  const finishWizard = () => {
-    setCurrentView(isAdmin ? 'dashboard' : 'semestres');
-    setWizardStep(1);
-    setSimulationComplete(false);
-    setSimulationRunning(false);
-  };
+  useEffect(() => {
+    if (isAdmin || isProf) return;
+    carregarSemestres();
+  }, [isAdmin, isProf]);
 
-  const addOferta = () => {
-    if (!newOfertaTurma || !newOfertaDisc) return;
-    const already = wizardData.ofertas.some(o => o.turmaId === newOfertaTurma && o.disciplinaId === newOfertaDisc);
-    if (already) return;
-    setWizardData(d => ({ ...d, ofertas: [...d.ofertas, { turmaId: newOfertaTurma, disciplinaId: newOfertaDisc }] }));
-    setNewOfertaTurma(0); setNewOfertaDisc(0);
-  };
-
-  const removeOferta = (turmaId: number, disciplinaId: number) => {
-    setWizardData(d => ({ ...d, ofertas: d.ofertas.filter(o => !(o.turmaId === turmaId && o.disciplinaId === disciplinaId)) }));
-  };
-
-  const updateRestricao = (professorId: number, patch: Partial<Restricao>) => {
-    setWizardData(d => ({
-      ...d,
-      restricoes: {
-        ...d.restricoes,
-        [professorId]: { professorId, horariosBloqueados: [], ...d.restricoes[professorId], ...patch },
-      },
-    }));
+  const criarNovoSemestre = async () => {
+    if (!novoSemestreForm.nome || !novoSemestreForm.dataInicio || !novoSemestreForm.dataFim) {
+      setNovoSemestreErro('Preencha o período, a data de início e a data de término.');
+      return;
+    }
+    if (novoSemestreForm.dataFim <= novoSemestreForm.dataInicio) {
+      setNovoSemestreErro('A data de término deve ser posterior à data de início.');
+      return;
+    }
+    setCriandoSemestre(true);
+    setNovoSemestreErro('');
+    try {
+      await criarSemestre(novoSemestreForm);
+      setNovoSemestreForm(emptyNovoSemestreForm);
+      carregarSemestres();
+      setCurrentView('semestres');
+    } catch (err: any) {
+      setNovoSemestreErro(err?.message || 'Erro ao criar semestre.');
+    } finally {
+      setCriandoSemestre(false);
+    }
   };
 
   // ── Navigation ────────────────────────────────────────────────────────────
@@ -970,14 +824,14 @@ function AppShell({ currentUser, onLogout }: { currentUser: SessaoUsuario; onLog
   const maxHoras = profLogado ? REGIME_MAX_HOURS[profLogado.regimeTrabalho] : 20;
   const horasAlocadas = profAgenda.length;
 
-  // ── Professor disponibilidade state ───────────────────────────────────────
-  const [disponibilidade, setDisponibilidade] = useState<Set<string>>(new Set([
-    'SEG_M1', 'SEG_M2', 'SEG_M3', 'SEG_M4',
-    'TER_M1', 'TER_M2',
-    'QUA_T1', 'QUA_T2', 'QUA_T3',
-    'SEX_M1', 'SEX_M2',
-  ]));
+  // ── Professor disponibilidade state (real, via backend) ────────────────────
+  const [disponibilidade, setDisponibilidade] = useState<Set<string>>(new Set());
   const [dispSaved, setDispSaved] = useState(false);
+  const [dispSemestres, setDispSemestres] = useState<SemestreUI[]>([]);
+  const [dispSemestreId, setDispSemestreId] = useState<number>(0);
+  const [dispLoading, setDispLoading] = useState(false);
+  const [dispErro, setDispErro] = useState('');
+  const [limiteCargaDisp, setLimiteCargaDisp] = useState<number>(20);
 
   const toggleDisponibilidade = (key: string) => {
     setDisponibilidade(prev => {
@@ -987,9 +841,50 @@ function AppShell({ currentUser, onLogout }: { currentUser: SessaoUsuario; onLog
     });
   };
 
-  const handleSaveDisp = () => {
-    setDispSaved(true);
-    setTimeout(() => setDispSaved(false), 2500);
+  useEffect(() => {
+    if (!isProf) return;
+    listarSemestres()
+      .then(s => {
+        setDispSemestres(s);
+        setDispSemestreId(prev => prev || s.find(x => x.status === 'ATIVO')?.id || s[0]?.id || 0);
+      })
+      .catch(() => {});
+  }, [isProf]);
+
+  useEffect(() => {
+    if (!isProf || !profLogado || !dispSemestreId) return;
+    setDispLoading(true);
+    setDispErro('');
+    obterDisponibilidade(profLogado.id, dispSemestreId)
+      .then(reg => {
+        if (reg) {
+          const bloqueados = new Set(reg.horariosBloqueados);
+          setDisponibilidade(new Set(ALL_DISP_KEYS.filter(k => !bloqueados.has(k))));
+          setLimiteCargaDisp(reg.limiteCargaHoraria);
+        } else {
+          setDisponibilidade(new Set(ALL_DISP_KEYS));
+          setLimiteCargaDisp(REGIME_MAX_HOURS[profLogado.regimeTrabalho] ?? 20);
+        }
+      })
+      .catch(err => setDispErro(err?.message || 'Erro ao carregar disponibilidade.'))
+      .finally(() => setDispLoading(false));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isProf, profLogado?.id, dispSemestreId]);
+
+  const handleSaveDisp = async () => {
+    if (!profLogado || !dispSemestreId) return;
+    setDispLoading(true);
+    setDispErro('');
+    try {
+      const bloqueados = ALL_DISP_KEYS.filter(k => !disponibilidade.has(k));
+      await salvarDisponibilidade(profLogado.id, dispSemestreId, bloqueados, limiteCargaDisp);
+      setDispSaved(true);
+      setTimeout(() => setDispSaved(false), 2500);
+    } catch (err: any) {
+      setDispErro(err?.message || 'Erro ao salvar disponibilidade.');
+    } finally {
+      setDispLoading(false);
+    }
   };
 
   // ── Disciplinas preferidas state ──────────────────────────────────────────
@@ -1020,21 +915,6 @@ function AppShell({ currentUser, onLogout }: { currentUser: SessaoUsuario; onLog
     setTimeout(() => setPrefSaved(false), 2500);
   };
 
-  // Slots definition for disponibilidade grid
-  const DISP_SHIFTS = [
-    { label: 'Manhã', slots: [
-      { id: 'M1', time: '07:25' }, { id: 'M2', time: '08:25' },
-      { id: 'M3', time: '09:45' }, { id: 'M4', time: '10:45' },
-    ]},
-    { label: 'Tarde', slots: [
-      { id: 'T1', time: '13:00' }, { id: 'T2', time: '14:00' },
-      { id: 'T3', time: '15:20' }, { id: 'T4', time: '16:20' },
-    ]},
-    { label: 'Noite', slots: [
-      { id: 'N1', time: '18:20' }, { id: 'N2', time: '19:20' },
-      { id: 'N3', time: '20:40' }, { id: 'N4', time: '21:40' },
-    ]},
-  ];
 
   return (
     <div className="flex h-screen w-full bg-background overflow-hidden">
@@ -1167,9 +1047,9 @@ function AppShell({ currentUser, onLogout }: { currentUser: SessaoUsuario; onLog
                     <BookOpen className="h-4 w-4 text-muted-foreground" />
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold">{resumo?.disciplinas ?? disciplinas.length}</div>
+                    <div className="text-2xl font-bold">{resumo?.disciplinas ?? 0}</div>
                     <p className="text-xs text-muted-foreground">
-                      Em {resumo?.cursos ?? MOCK_CURSOS.filter(c => disciplinas.some(d => d.cursoId === c.id)).length} cursos
+                      Em {resumo?.cursos ?? 0} cursos
                     </p>
                   </CardContent>
                 </Card>
@@ -1179,26 +1059,14 @@ function AppShell({ currentUser, onLogout }: { currentUser: SessaoUsuario; onLog
                     <Calendar className="h-4 w-4 text-muted-foreground" />
                   </CardHeader>
                   <CardContent>
-                    {(() => {
-                      if (resumo) {
-                        const atual = resumo.semestre_atual;
-                        return atual ? (
-                          <>
-                            <div className="text-2xl font-bold">{atual.nome}</div>
-                            <Badge variant="secondary" className="mt-1">{atual.status}</Badge>
-                          </>
-                        ) : <div className="text-sm text-muted-foreground">Nenhum ativo</div>;
-                      }
-                      const ativo = MOCK_SEMESTRES.find(s => s.statusEtapa !== 'CONCLUIDO');
-                      return ativo ? (
-                        <>
-                          <div className="text-2xl font-bold">{ativo.nome}</div>
-                          <Badge variant={etapaBadgeVariant(ativo.statusEtapa)} className="mt-1">
-                            {ETAPA_LABELS[ativo.statusEtapa]}
-                          </Badge>
-                        </>
-                      ) : <div className="text-sm text-muted-foreground">Nenhum ativo</div>;
-                    })()}
+                    {resumo?.semestre_atual ? (
+                      <>
+                        <div className="text-2xl font-bold">{resumo.semestre_atual.nome}</div>
+                        <Badge variant="secondary" className="mt-1">{resumo.semestre_atual.status}</Badge>
+                      </>
+                    ) : (
+                      <div className="text-sm text-muted-foreground">Nenhum ativo</div>
+                    )}
                   </CardContent>
                 </Card>
                 <Card>
@@ -1213,49 +1081,34 @@ function AppShell({ currentUser, onLogout }: { currentUser: SessaoUsuario; onLog
                 </Card>
               </div>
 
-              {/* Simulation status */}
+              {/* Próximos passos / Histórico */}
               <div className="grid gap-4 md:grid-cols-2">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Status da Simulação</CardTitle>
-                    <CardDescription>Semestre 2024.1 — em andamento</CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-5">
-                    {[
-                      { label: 'Configuração de Ofertas', done: true, pct: 100 },
-                      { label: 'Restrições dos Professores', done: true, pct: 100 },
-                      { label: 'Simulação de Alocação', done: false, pct: 62 },
-                      { label: 'Aprovação Final', done: false, pct: 0 },
-                    ].map(step => (
-                      <div key={step.label} className="space-y-1.5">
-                        <div className="flex items-center justify-between text-sm">
-                          <div className="flex items-center gap-2">
-                            {step.done
-                              ? <CheckCircle2 className="h-4 w-4 text-green-500 shrink-0" />
-                              : <Clock className="h-4 w-4 text-muted-foreground shrink-0" />
-                            }
-                            <span className={step.done ? 'text-foreground' : 'text-muted-foreground'}>{step.label}</span>
-                          </div>
-                          <span className="text-xs text-muted-foreground">{step.pct}%</span>
-                        </div>
-                        <div className="h-1.5 bg-muted rounded-full overflow-hidden">
-                          <motion.div
-                            className={cn('h-full rounded-full', step.done ? 'bg-green-500' : 'bg-primary')}
-                            initial={{ width: 0 }}
-                            animate={{ width: `${step.pct}%` }}
-                            transition={{ duration: 0.8, ease: 'easeOut' }}
-                          />
-                        </div>
-                      </div>
-                    ))}
-                    {!isAdmin && (
-                      <Button variant="outline" className="w-full mt-2" onClick={() => setCurrentView('wizard')}>
-                        <Play className="mr-2 h-4 w-4" />
-                        Continuar Simulação
-                      </Button>
-                    )}
-                  </CardContent>
-                </Card>
+                {!isAdmin && (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Próximos Passos</CardTitle>
+                      <CardDescription>Fluxo de montagem da grade do semestre.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-2">
+                      {[
+                        { label: 'Ofertas de Disciplina', view: 'ofertas' as View },
+                        { label: 'Disponibilidade de Turmas', view: 'disponibilidade-turma' as View },
+                        { label: 'Gerar Grade Horária', view: 'grade' as View },
+                        { label: 'Alertas da Grade', view: 'alertas' as View },
+                      ].map(step => (
+                        <Button
+                          key={step.view}
+                          variant="outline"
+                          className="w-full justify-between"
+                          onClick={() => setCurrentView(step.view)}
+                        >
+                          {step.label}
+                          <ChevronRight className="h-4 w-4" />
+                        </Button>
+                      ))}
+                    </CardContent>
+                  </Card>
+                )}
 
                 <Card>
                   <CardHeader>
@@ -1263,7 +1116,7 @@ function AppShell({ currentUser, onLogout }: { currentUser: SessaoUsuario; onLog
                     <CardDescription>Situação por período letivo.</CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-3">
-                    {(resumo ? resumo.semestres.map(sem => (
+                    {(resumo?.semestres ?? []).map(sem => (
                       <div key={sem.id} className="flex items-center justify-between p-3 rounded-lg border">
                         <div>
                           <p className="font-medium text-sm">{sem.nome}</p>
@@ -1271,18 +1124,8 @@ function AppShell({ currentUser, onLogout }: { currentUser: SessaoUsuario; onLog
                         </div>
                         <Badge variant="secondary">{sem.status}</Badge>
                       </div>
-                    )) : MOCK_SEMESTRES.map(sem => (
-                      <div key={sem.id} className="flex items-center justify-between p-3 rounded-lg border">
-                        <div>
-                          <p className="font-medium text-sm">{sem.nome}</p>
-                          <p className="text-xs text-muted-foreground">{fmtDate(sem.dataInicio)} – {fmtDate(sem.dataTermino)}</p>
-                        </div>
-                        <Badge variant={etapaBadgeVariant(sem.statusEtapa)}>
-                          {ETAPA_LABELS[sem.statusEtapa]}
-                        </Badge>
-                      </div>
-                    )))}
-                    {resumo && resumo.semestres.length === 0 && (
+                    ))}
+                    {(!resumo || resumo.semestres.length === 0) && (
                       <p className="text-sm text-muted-foreground text-center py-3">Nenhum semestre cadastrado.</p>
                     )}
                     {!isAdmin && (
@@ -1298,303 +1141,61 @@ function AppShell({ currentUser, onLogout }: { currentUser: SessaoUsuario; onLog
 
           {/* ── WIZARD ────────────────────────────────────────────────── */}
           {currentView === 'wizard' && (
-            <div className="max-w-4xl mx-auto space-y-6">
+            <div className="max-w-lg mx-auto space-y-6">
               <div className="flex items-center justify-between">
                 <div>
                   <h2 className="text-2xl font-bold tracking-tight">Novo Semestre Letivo</h2>
-                  <p className="text-muted-foreground">Siga as etapas para configurar e simular a alocação.</p>
+                  <p className="text-muted-foreground">Informe os dados do período letivo.</p>
                 </div>
                 <Button variant="ghost" onClick={() => setCurrentView(isAdmin ? 'dashboard' : 'semestres')}>Cancelar</Button>
               </div>
 
-              {/* Stepper */}
-              <div className="relative">
-                <div className="absolute left-0 top-4 w-full h-0.5 bg-muted">
-                  <motion.div
-                    className="h-full bg-primary"
-                    initial={{ width: '0%' }}
-                    animate={{ width: `${((wizardStep - 1) / 3) * 100}%` }}
-                    transition={{ duration: 0.3 }}
-                  />
-                </div>
-                <div className="relative flex justify-between">
-                  {(['Criação', 'Ofertas', 'Restrições', 'Simulação'] as const).map((label, i) => {
-                    const step = i + 1;
-                    return (
-                      <div key={step} className="flex flex-col items-center gap-2 bg-background px-2 z-10">
-                        <div className={cn(
-                          'w-8 h-8 rounded-full flex items-center justify-center font-medium border-2 transition-colors',
-                          wizardStep > step ? 'bg-primary border-primary text-primary-foreground' :
-                          wizardStep === step ? 'border-primary text-primary bg-background' :
-                          'border-muted text-muted-foreground bg-background'
-                        )}>
-                          {wizardStep > step ? <CheckCircle2 className="h-4 w-4" /> : step}
-                        </div>
-                        <span className={cn('text-xs font-medium', wizardStep >= step ? 'text-foreground' : 'text-muted-foreground')}>
-                          {label}
-                        </span>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-
               <Card>
-                <AnimatePresence mode="wait">
-                  {wizardStep === 1 && (
-                    <motion.div key="s1" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
-                      <CardHeader>
-                        <CardTitle>1. Dados do Semestre</CardTitle>
-                        <CardDescription>Informe o período letivo e as datas de início e término.</CardDescription>
-                      </CardHeader>
-                      <CardContent className="space-y-4">
-                        <div className="space-y-2">
-                          <Label htmlFor="nome">Período Letivo (ex: 2024.2)</Label>
-                          <Input id="nome" value={wizardData.nome} onChange={e => setWizardData(d => ({ ...d, nome: e.target.value }))} />
-                        </div>
-                        <div className="grid grid-cols-2 gap-4">
-                          <div className="space-y-2">
-                            <Label>Data de Início</Label>
-                            <DatePicker value={wizardData.dataInicio} onChange={v => setWizardData(d => ({ ...d, dataInicio: v }))} placeholder="Selecione a data de início" />
-                          </div>
-                          <div className="space-y-2">
-                            <Label>Data de Término</Label>
-                            <DatePicker value={wizardData.dataTermino} onChange={v => setWizardData(d => ({ ...d, dataTermino: v }))} placeholder="Selecione a data de término" min={wizardData.dataInicio || undefined} />
-                          </div>
-                        </div>
-                        {wizardData.dataTermino && wizardData.dataInicio && wizardData.dataTermino <= wizardData.dataInicio && (
-                          <p className="text-sm text-destructive flex items-center gap-1">
-                            <AlertCircle className="h-4 w-4" />
-                            A data de término deve ser posterior à data de início.
-                          </p>
-                        )}
-                      </CardContent>
-                    </motion.div>
+                <CardHeader>
+                  <CardTitle>Dados do Semestre</CardTitle>
+                  <CardDescription>
+                    Depois de criado, configure Ofertas, Disponibilidade de Turmas e gere a Grade Horária nas respectivas telas.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {novoSemestreErro && (
+                    <div className="flex items-center gap-2 px-3 py-2.5 bg-destructive/10 border border-destructive/20 rounded-lg">
+                      <AlertCircle className="h-4 w-4 text-destructive shrink-0" />
+                      <p className="text-xs text-destructive">{novoSemestreErro}</p>
+                    </div>
                   )}
-
-                  {wizardStep === 2 && (
-                    <motion.div key="s2" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
-                      <CardHeader>
-                        <CardTitle>2. Configuração de Ofertas</CardTitle>
-                        <CardDescription>Associe disciplinas às turmas que as receberão neste semestre.</CardDescription>
-                      </CardHeader>
-                      <CardContent className="space-y-4">
-                        <div className="flex gap-2 items-end flex-wrap">
-                          <div className="flex-1 min-w-[160px] space-y-1">
-                            <Label>Turma</Label>
-                            <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" value={newOfertaTurma} onChange={e => setNewOfertaTurma(Number(e.target.value))}>
-                              <option value={0}>Selecionar turma…</option>
-                              {turmas.map(t => <option key={t.id} value={t.id}>{t.nome}</option>)}
-                            </select>
-                          </div>
-                          <div className="flex-1 min-w-[200px] space-y-1">
-                            <Label>Disciplina</Label>
-                            <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" value={newOfertaDisc} onChange={e => setNewOfertaDisc(Number(e.target.value))}>
-                              <option value={0}>Selecionar disciplina…</option>
-                              {disciplinas.map(d => <option key={d.id} value={d.id}>{d.sigla} — {d.nome}</option>)}
-                            </select>
-                          </div>
-                          <Button onClick={addOferta} disabled={!newOfertaTurma || !newOfertaDisc}>
-                            <Plus className="mr-2 h-4 w-4" />Adicionar
-                          </Button>
-                        </div>
-                        {wizardData.ofertas.length === 0 ? (
-                          <div className="text-center py-10 text-muted-foreground text-sm border rounded-lg">
-                            Nenhuma oferta adicionada. Associe pelo menos uma turma a uma disciplina.
-                          </div>
-                        ) : (
-                          <div className="rounded-md border">
-                            <Table>
-                              <TableHeader>
-                                <TableRow>
-                                  <TableHead>Turma</TableHead><TableHead>Turno</TableHead><TableHead>Disciplina</TableHead><TableHead>Créditos</TableHead><TableHead className="w-12"></TableHead>
-                                </TableRow>
-                              </TableHeader>
-                              <TableBody>
-                                {wizardData.ofertas.map((o, i) => {
-                                  const turma = turmas.find(t => t.id === o.turmaId);
-                                  const disc = disciplinas.find(d => d.id === o.disciplinaId);
-                                  return (
-                                    <TableRow key={i}>
-                                      <TableCell className="font-medium">{turma?.nome ?? '—'}</TableCell>
-                                      <TableCell><Badge variant="outline">{turma?.turno ?? '—'}</Badge></TableCell>
-                                      <TableCell>{disc ? `${disc.sigla} — ${disc.nome}` : '—'}</TableCell>
-                                      <TableCell>{disc?.cargaHorariaCreditos ?? '—'}</TableCell>
-                                      <TableCell>
-                                        <Button variant="ghost" size="icon" className="text-destructive h-8 w-8" onClick={() => removeOferta(o.turmaId, o.disciplinaId)}>
-                                          <X className="h-4 w-4" />
-                                        </Button>
-                                      </TableCell>
-                                    </TableRow>
-                                  );
-                                })}
-                              </TableBody>
-                            </Table>
-                          </div>
-                        )}
-                      </CardContent>
-                    </motion.div>
-                  )}
-
-                  {wizardStep === 3 && (
-                    <motion.div key="s3" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
-                      <CardHeader>
-                        <CardTitle>3. Restrições dos Professores</CardTitle>
-                        <CardDescription>Marque os horários indisponíveis de cada professor e configure o limite de carga horária semanal.</CardDescription>
-                      </CardHeader>
-                      <CardContent className="space-y-3">
-                        {professores.map(prof => {
-                          const r = wizardData.restricoes[prof.id];
-                          const blocked = r?.horariosBloqueados ?? [];
-                          const isExpanded = expandedProf === prof.id;
-                          return (
-                            <div key={prof.id} className="border rounded-lg overflow-hidden">
-                              <button
-                                type="button"
-                                className="w-full flex items-center justify-between p-4 hover:bg-muted/30 transition-colors text-left"
-                                onClick={() => setExpandedProf(isExpanded ? null : prof.id)}
-                              >
-                                <div className="flex items-center gap-3">
-                                  <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-sm">
-                                    {prof.nome.charAt(0)}
-                                  </div>
-                                  <div>
-                                    <p className="font-medium text-sm">{prof.nome}</p>
-                                    <p className="text-xs text-muted-foreground">
-                                      {REGIME_LABELS[prof.regimeTrabalho]} · {REGIME_MAX_CH[prof.regimeTrabalho]}
-                                      {blocked.length > 0 && ` · ${blocked.length} horário${blocked.length > 1 ? 's' : ''} bloqueado${blocked.length > 1 ? 's' : ''}`}
-                                    </p>
-                                  </div>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                  {blocked.length > 0 && (
-                                    <Badge variant="warning">
-                                      <ShieldAlert className="h-3 w-3 mr-1" />{blocked.length} bloqueio{blocked.length > 1 ? 's' : ''}
-                                    </Badge>
-                                  )}
-                                  <ChevronRight className={cn('h-4 w-4 text-muted-foreground transition-transform', isExpanded && 'rotate-90')} />
-                                </div>
-                              </button>
-                              {isExpanded && (
-                                <motion.div
-                                  initial={{ height: 0 }}
-                                  animate={{ height: 'auto' }}
-                                  exit={{ height: 0 }}
-                                  className="border-t px-4 pb-4 pt-3 space-y-4"
-                                >
-                                  <div className="space-y-1">
-                                    <Label htmlFor={`ch-${prof.id}`}>Limite CH semanal em sala (horas)</Label>
-                                    <Input
-                                      id={`ch-${prof.id}`}
-                                      type="number"
-                                      min={0}
-                                      max={REGIME_MAX_HOURS[prof.regimeTrabalho]}
-                                      value={r?.limiteCargaHoraria ?? ''}
-                                      placeholder={`Máx: ${REGIME_MAX_HOURS[prof.regimeTrabalho]}h`}
-                                      className="w-40"
-                                      onChange={e => updateRestricao(prof.id, { limiteCargaHoraria: e.target.value ? Number(e.target.value) : undefined })}
-                                    />
-                                  </div>
-                                  <TimeSlotGrid
-                                    blocked={blocked}
-                                    onChange={horariosBloqueados => updateRestricao(prof.id, { horariosBloqueados })}
-                                  />
-                                </motion.div>
-                              )}
-                            </div>
-                          );
-                        })}
-                      </CardContent>
-                    </motion.div>
-                  )}
-
-                  {wizardStep === 4 && (
-                    <motion.div key="s4" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
-                      <CardHeader className="items-center text-center">
-                        <CardTitle>4. Simulação de Alocação</CardTitle>
-                        <CardDescription>O algoritmo cruzará as ofertas com as restrições para propor a grade ideal.</CardDescription>
-                      </CardHeader>
-                      <CardContent className="py-8 flex flex-col items-center justify-center space-y-6">
-                        {!simulationRunning && !simulationComplete && (
-                          <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="flex flex-col items-center gap-6">
-                            <div className="w-24 h-24 rounded-full bg-primary/10 flex items-center justify-center">
-                              <Play className="h-10 w-10 text-primary ml-1" />
-                            </div>
-                            <div className="text-center space-y-1">
-                              <p className="font-medium">{wizardData.ofertas.length} oferta{wizardData.ofertas.length !== 1 ? 's' : ''} configurada{wizardData.ofertas.length !== 1 ? 's' : ''}</p>
-                              <p className="text-sm text-muted-foreground">
-                                {Object.values(wizardData.restricoes).filter(r => r.horariosBloqueados.length > 0).length} professor(es) com restrições de horário.
-                              </p>
-                            </div>
-                            <Button size="lg" onClick={runSimulation}>Iniciar Simulação</Button>
-                          </motion.div>
-                        )}
-                        {simulationRunning && (
-                          <div className="flex flex-col items-center gap-6">
-                            <div className="relative w-24 h-24">
-                              <div className="absolute inset-0 rounded-full border-4 border-muted" />
-                              <motion.div
-                                className="absolute inset-0 rounded-full border-4 border-primary border-t-transparent"
-                                animate={{ rotate: 360 }}
-                                transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
-                              />
-                              <div className="absolute inset-0 flex items-center justify-center">
-                                <Settings className="h-8 w-8 text-primary animate-pulse" />
-                              </div>
-                            </div>
-                            <div className="text-center space-y-1">
-                              <h3 className="font-medium">Processando restrições...</h3>
-                              <p className="text-sm text-muted-foreground">Otimizando alocação. Aguarde.</p>
-                            </div>
-                          </div>
-                        )}
-                        {simulationComplete && (
-                          <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="w-full max-w-lg">
-                            <div className="bg-green-50 border border-green-200 rounded-lg p-6 flex flex-col items-center text-center gap-4">
-                              <CheckCircle2 className="h-12 w-12 text-green-600" />
-                              <div>
-                                <h3 className="text-xl font-bold text-green-800">Simulação Concluída!</h3>
-                                <p className="text-green-700 text-sm mt-1">Grade gerada com 98% de otimização, sem conflitos críticos.</p>
-                              </div>
-                              <div className="grid grid-cols-3 gap-3 w-full mt-2 text-left">
-                                {[
-                                  { label: 'Aulas Alocadas', value: `${wizardData.ofertas.length}/${wizardData.ofertas.length}` },
-                                  { label: 'Conflitos', value: '0' },
-                                  { label: 'CH Média', value: '18h' },
-                                ].map(item => (
-                                  <div key={item.label} className="bg-white p-3 rounded border border-green-100 shadow-sm">
-                                    <p className="text-xs text-muted-foreground uppercase tracking-wide">{item.label}</p>
-                                    <p className="text-xl font-bold text-green-800">{item.value}</p>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          </motion.div>
-                        )}
-                      </CardContent>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-
-                <CardFooter className="flex justify-between border-t p-4 md:p-6 bg-muted/10 rounded-b-lg">
-                  <Button variant="outline" onClick={() => setWizardStep(s => Math.max(1, s - 1))} disabled={wizardStep === 1 || simulationRunning}>
-                    <ChevronLeft className="mr-2 h-4 w-4" />Voltar
-                  </Button>
-                  {wizardStep < 4 ? (
-                    <Button
-                      onClick={() => setWizardStep(s => s + 1)}
-                      disabled={
-                        (wizardStep === 1 && (!wizardData.nome || !wizardData.dataInicio || !wizardData.dataTermino || wizardData.dataTermino <= wizardData.dataInicio)) ||
-                        (wizardStep === 2 && wizardData.ofertas.length === 0)
-                      }
+                  <div className="space-y-2">
+                    <Label htmlFor="nome">Período Letivo (ex: 2026.2)</Label>
+                    <Input id="nome" value={novoSemestreForm.nome} onChange={e => { setNovoSemestreForm(f => ({ ...f, nome: e.target.value })); setNovoSemestreErro(''); }} />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label>Data de Início</Label>
+                      <DatePicker value={novoSemestreForm.dataInicio} onChange={v => setNovoSemestreForm(f => ({ ...f, dataInicio: v }))} placeholder="Selecione a data de início" />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Data de Término</Label>
+                      <DatePicker value={novoSemestreForm.dataFim} onChange={v => setNovoSemestreForm(f => ({ ...f, dataFim: v }))} placeholder="Selecione a data de término" min={novoSemestreForm.dataInicio || undefined} />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Status</Label>
+                    <select
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      value={novoSemestreForm.status}
+                      onChange={e => setNovoSemestreForm(f => ({ ...f, status: e.target.value }))}
                     >
-                      Próximo<ChevronRight className="ml-2 h-4 w-4" />
-                    </Button>
-                  ) : simulationComplete ? (
-                    <Button onClick={finishWizard} className="bg-green-600 hover:bg-green-700">
-                      <Save className="mr-2 h-4 w-4" />Salvar Semestre
-                    </Button>
-                  ) : <div />}
+                      <option value="PLANEJAMENTO">Planejamento</option>
+                      <option value="ATIVO">Ativo</option>
+                      <option value="CONCLUIDO">Concluído</option>
+                    </select>
+                  </div>
+                </CardContent>
+                <CardFooter className="flex justify-end gap-2 border-t p-4 md:p-6 bg-muted/10 rounded-b-lg">
+                  <Button variant="outline" onClick={() => setCurrentView(isAdmin ? 'dashboard' : 'semestres')}>Cancelar</Button>
+                  <Button onClick={criarNovoSemestre} disabled={criandoSemestre}>
+                    <Save className="mr-2 h-4 w-4" />{criandoSemestre ? 'Criando…' : 'Criar Semestre'}
+                  </Button>
                 </CardFooter>
               </Card>
             </div>
@@ -1712,43 +1313,33 @@ function AppShell({ currentUser, onLogout }: { currentUser: SessaoUsuario; onLog
               <div className="flex items-center justify-between">
                 <div>
                   <h2 className="text-2xl font-bold tracking-tight">Semestres Letivos</h2>
-                  <p className="text-muted-foreground">Histórico e acompanhamento de etapas do fluxo de alocação.</p>
+                  <p className="text-muted-foreground">Períodos letivos cadastrados.</p>
                 </div>
                 <Button onClick={() => setCurrentView('wizard')}>
                   <Plus className="mr-2 h-4 w-4" />Criar Semestre
                 </Button>
               </div>
-              <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                {(['OFERTAS', 'RESTRICOES', 'SIMULACAO', 'CONCLUIDO'] as StatusEtapa[]).map((etapa, i, arr) => (
-                  <React.Fragment key={etapa}>
-                    <Badge variant={etapaBadgeVariant(etapa)} className="font-mono">{etapa}</Badge>
-                    {i < arr.length - 1 && <ChevronRight className="h-3 w-3 shrink-0" />}
-                  </React.Fragment>
-                ))}
-              </div>
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {MOCK_SEMESTRES.map(sem => (
-                  <Card key={sem.id} className="relative overflow-hidden">
-                    {sem.statusEtapa !== 'CONCLUIDO' && (
-                      <div className="absolute top-0 right-0 w-16 h-16 pointer-events-none">
-                        <div className="absolute transform rotate-45 bg-primary text-primary-foreground text-[10px] font-bold py-1 right-[-35px] top-[15px] w-[120px] text-center">
-                          ATIVO
-                        </div>
-                      </div>
-                    )}
-                    <CardHeader>
-                      <CardTitle className="text-xl">{sem.nome}</CardTitle>
-                      <CardDescription>{fmtDate(sem.dataInicio)} até {fmtDate(sem.dataTermino)}</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <Badge variant={etapaBadgeVariant(sem.statusEtapa)}>{ETAPA_LABELS[sem.statusEtapa]}</Badge>
-                    </CardContent>
-                    <CardFooter>
-                      <Button variant="outline" className="w-full">Ver Detalhes</Button>
-                    </CardFooter>
-                  </Card>
-                ))}
-              </div>
+              {semestresCarregando ? (
+                <p className="text-sm text-muted-foreground">Carregando…</p>
+              ) : semestresLista.length === 0 ? (
+                <div className="text-center py-10 text-muted-foreground text-sm border rounded-lg">
+                  Nenhum semestre cadastrado ainda.
+                </div>
+              ) : (
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                  {semestresLista.map(sem => (
+                    <Card key={sem.id} className="relative overflow-hidden">
+                      <CardHeader>
+                        <CardTitle className="text-xl">{sem.nome}</CardTitle>
+                        <CardDescription>{fmtDate(sem.dataInicio)} até {fmtDate(sem.dataFim)}</CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <Badge variant={sem.status === 'ATIVO' ? 'default' : sem.status === 'CONCLUIDO' ? 'success' : 'secondary'}>{sem.status}</Badge>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              )}
             </motion.div>
           )}
 
@@ -2062,18 +1653,43 @@ function AppShell({ currentUser, onLogout }: { currentUser: SessaoUsuario; onLog
                         Clique nas células para marcar sua disponibilidade. Verde = disponível · Azul = aula já alocada.
                       </CardDescription>
                     </div>
-                    <div className="flex items-center gap-2 shrink-0">
+                    <div className="flex items-center gap-2 shrink-0 flex-wrap">
+                      <select
+                        className="flex h-9 rounded-md border border-input bg-background px-2 text-sm"
+                        value={dispSemestreId}
+                        onChange={e => setDispSemestreId(Number(e.target.value))}
+                      >
+                        {dispSemestres.length === 0 && <option value={0}>Sem semestres</option>}
+                        {dispSemestres.map(s => <option key={s.id} value={s.id}>{s.nome}</option>)}
+                      </select>
+                      <div className="flex items-center gap-1.5">
+                        <Label htmlFor="limiteCargaDisp" className="text-xs whitespace-nowrap">Limite (h/sem):</Label>
+                        <Input
+                          id="limiteCargaDisp"
+                          type="number"
+                          min={1}
+                          value={limiteCargaDisp}
+                          onChange={e => setLimiteCargaDisp(Number(e.target.value) || 1)}
+                          className="w-20 h-9"
+                        />
+                      </div>
                       <span className="text-sm text-muted-foreground whitespace-nowrap">
                         Horários selecionados: <strong className="text-foreground">{disponibilidade.size}</strong>
                       </span>
                       <Button variant="outline" size="sm" onClick={() => setDisponibilidade(new Set())}>
                         Limpar seleção
                       </Button>
-                      <Button size="sm" onClick={handleSaveDisp}>
-                        <Save className="mr-1.5 h-3.5 w-3.5" />Salvar disponibilidade
+                      <Button size="sm" onClick={handleSaveDisp} disabled={dispLoading || !dispSemestreId}>
+                        <Save className="mr-1.5 h-3.5 w-3.5" />{dispLoading ? 'Salvando…' : 'Salvar disponibilidade'}
                       </Button>
                     </div>
                   </div>
+                  {dispErro && (
+                    <div className="mt-3 flex items-center gap-2 px-3 py-2.5 bg-destructive/10 border border-destructive/20 rounded-lg">
+                      <AlertCircle className="h-4 w-4 text-destructive shrink-0" />
+                      <p className="text-xs text-destructive">{dispErro}</p>
+                    </div>
+                  )}
                   <AnimatePresence>
                     {dispSaved && (
                       <motion.div
@@ -2100,18 +1716,18 @@ function AppShell({ currentUser, onLogout }: { currentUser: SessaoUsuario; onLog
                         </tr>
                       </thead>
                       <tbody>
-                        {DISP_SHIFTS.map(shift => (
-                          <React.Fragment key={shift.label}>
+                        {SHIFTS.map(shift => (
+                          <React.Fragment key={shift.id}>
                             <tr>
                               <td colSpan={7} className="pt-3 pb-1 px-2">
                                 <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{shift.label}</span>
                               </td>
                             </tr>
-                            {shift.slots.map(({ id: slotId, time }) => (
+                            {shift.slots.map(slotId => (
                               <tr key={slotId} className="border-b border-muted/30 last:border-b-0">
                                 <td className="p-1.5 whitespace-nowrap">
                                   <span className="font-mono text-muted-foreground">{slotId}</span>
-                                  <span className="ml-1.5 text-muted-foreground/60">{time}</span>
+                                  <span className="ml-1.5 text-muted-foreground/60">{SLOT_TIMES[slotId]}</span>
                                 </td>
                                 {DAYS.map(day => {
                                   const key = `${day}_${slotId}`;

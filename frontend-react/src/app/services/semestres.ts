@@ -16,6 +16,13 @@ interface SemestreBackend {
   status: string;
 }
 
+export interface SemestreFormData {
+  nome: string;
+  dataInicio: string;
+  dataFim: string;
+  status: string;
+}
+
 function paraUI(s: SemestreBackend): SemestreUI {
   return {
     id: s.id,
@@ -26,7 +33,19 @@ function paraUI(s: SemestreBackend): SemestreUI {
   };
 }
 
+function paraBackend(f: SemestreFormData) {
+  return { nome: f.nome, data_inicio: f.dataInicio, data_fim: f.dataFim, status: f.status };
+}
+
 export async function listarSemestres(): Promise<SemestreUI[]> {
   const dados = await apiFetch<SemestreBackend[]>('/api/semestres');
   return dados.map(paraUI);
+}
+
+export async function criarSemestre(f: SemestreFormData): Promise<SemestreUI> {
+  const novo = await apiFetch<SemestreBackend>('/api/semestres', {
+    method: 'POST',
+    body: JSON.stringify(paraBackend(f)),
+  });
+  return paraUI(novo);
 }
