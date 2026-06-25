@@ -7,9 +7,9 @@ from typing import List
 # ---------------------------------------------------------------------------
 DIAS_SEMANA = {"SEG", "TER", "QUA", "QUI", "SEX", "SAB"}
 SLOTS_AULA = {
-    "M1", "M2", "M3", "M4",   # Manhã
-    "T1", "T2", "T3", "T4",   # Tarde
-    "N1", "N2", "N3", "N4",   # Noite
+    "M1", "M2", "M3", "M4", "M5",   # Manhã
+    "T1", "T2", "T3", "T4", "T5",   # Tarde
+    "N1", "N2", "N3", "N4", "N5",   # Noite (5 aulas de 50min)
 }
 
 

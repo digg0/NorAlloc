@@ -12,11 +12,18 @@ router = APIRouter(prefix="/api/horarios", tags=["Módulo de Cadastros Base - Ho
 
 
 @router.get("", response_model=List[HorarioResponse], dependencies=[Depends(obter_usuario_atual)])
-def listar_horarios(turno: Optional[str] = None, db: Session = Depends(get_db)):
+def listar_horarios(
+    turno: Optional[str] = None,
+    dia_semana: Optional[str] = None,
+    db: Session = Depends(get_db),
+):
+    """Lista todos os horários cadastrados. Aceita filtro opcional por turno e dia_semana."""
     query = db.query(Horario)
     if turno:
         query = query.filter(Horario.turno == turno.strip().upper())
-    return query.order_by(Horario.turno, Horario.hora_inicio).all()
+    if dia_semana:
+        query = query.filter(Horario.dia_semana == dia_semana.strip().upper())
+    return query.order_by(Horario.dia_semana, Horario.turno, Horario.hora_inicio).all()
 
 
 @router.get("/{horario_id}", response_model=HorarioResponse, dependencies=[Depends(obter_usuario_atual)])
@@ -31,13 +38,26 @@ def obter_horario(horario_id: int, db: Session = Depends(get_db)):
 def criar_horario(dados: HorarioCreate, db: Session = Depends(get_db)):
     existente = (
         db.query(Horario)
-        .filter(Horario.turno == dados.turno, Horario.hora_inicio == dados.hora_inicio, Horario.hora_fim == dados.hora_fim)
+        .filter(
+            Horario.dia_semana == dados.dia_semana,
+            Horario.turno == dados.turno,
+            Horario.hora_inicio == dados.hora_inicio,
+            Horario.hora_fim == dados.hora_fim,
+        )
         .first()
     )
     if existente:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Já existe um horário com este turno, hora de início e hora de fim.")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Já existe um horário com este dia, turno, hora de início e hora de fim.",
+        )
 
-    novo = Horario(turno=dados.turno, hora_inicio=dados.hora_inicio, hora_fim=dados.hora_fim)
+    novo = Horario(
+        dia_semana=dados.dia_semana,
+        turno=dados.turno,
+        hora_inicio=dados.hora_inicio,
+        hora_fim=dados.hora_fim,
+    )
     db.add(novo)
     db.commit()
     db.refresh(novo)

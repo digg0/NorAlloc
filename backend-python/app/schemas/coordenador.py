@@ -2,25 +2,24 @@ from pydantic import BaseModel, EmailStr, Field, ConfigDict
 from typing import Optional
 
 
-class CoordenadorBase(BaseModel):
-    nome: str = Field(..., min_length=3, max_length=150, description="Nome do coordenador")
-    email: EmailStr = Field(..., description="E-mail institucional")
+class CoordenadorCreate(BaseModel):
+    professor_id: int = Field(..., gt=0, description="Professor da instituição que vai coordenar o curso")
     curso_id: int = Field(..., gt=0, description="ID do curso associado")
-
-
-class CoordenadorCreate(CoordenadorBase):
-    password: str = Field(..., min_length=8, description="Senha forte para acesso")
+    password: Optional[str] = Field(None, min_length=8, description="Senha de acesso (opcional se o professor já tiver login)")
 
 
 class CoordenadorUpdate(BaseModel):
-    nome: Optional[str] = Field(None, min_length=3, max_length=150)
-    email: Optional[EmailStr] = None
+    professor_id: Optional[int] = Field(None, gt=0, description="Troca o docente que coordena o curso")
     curso_id: Optional[int] = Field(None, gt=0)
     password: Optional[str] = Field(None, min_length=8)
 
 
-class CoordenadorResponse(CoordenadorBase):
+class CoordenadorResponse(BaseModel):
     id: int
+    nome: str
+    email: EmailStr
+    curso_id: int
+    professor_id: Optional[int] = None
     ativo: bool
 
     model_config = ConfigDict(from_attributes=True)

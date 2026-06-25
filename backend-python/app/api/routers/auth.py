@@ -1,15 +1,14 @@
 from fastapi import APIRouter, Depends, HTTPException, status
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.core.security import senha_confere, criar_token_acesso, decodificar_token
+from app.core.deps import obter_usuario_atual
+from app.core.security import senha_confere, criar_token_acesso
+from app.models.coordenador import Coordenador
 from app.models.usuario import Usuario
 from app.schemas.auth import LoginRequest, TokenResponse, UsuarioAutenticado
 
 router = APIRouter(prefix="/api/auth", tags=["Autenticação"])
-
-_bearer = HTTPBearer(auto_error=True)
 
 
 @router.post("/login", response_model=TokenResponse)
@@ -26,6 +25,14 @@ def login(dados: LoginRequest, db: Session = Depends(get_db)):
             detail="E-mail ou senha incorretos.",
         )
 
+    if usuario.tipo == "COORDENADOR":
+        coordenador = db.query(Coordenador).filter(Coordenador.usuario_id == usuario.id).first()
+        if coordenador and not coordenador.ativo:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Acesso de coordenador inativo.",
+            )
+
     token = criar_token_acesso(
         {"sub": str(usuario.id), "email": usuario.email, "tipo": usuario.tipo}
     )
@@ -33,26 +40,6 @@ def login(dados: LoginRequest, db: Session = Depends(get_db)):
         acesso_token=token,
         usuario=UsuarioAutenticado.model_validate(usuario),
     )
-
-
-def obter_usuario_atual(
-    credenciais: HTTPAuthorizationCredentials = Depends(_bearer),
-    db: Session = Depends(get_db),
-) -> Usuario:
-    """Dependência que valida o token Bearer e retorna o usuário logado."""
-    payload = decodificar_token(credenciais.credentials)
-    if not payload:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Token inválido ou expirado.",
-        )
-    usuario = db.query(Usuario).filter(Usuario.id == int(payload["sub"])).first()
-    if not usuario:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Usuário não encontrado.",
-        )
-    return usuario
 
 
 @router.get("/me", response_model=UsuarioAutenticado)
