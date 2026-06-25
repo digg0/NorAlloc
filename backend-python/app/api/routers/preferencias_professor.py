@@ -10,24 +10,19 @@ from app.schemas.professor import (
     PreferenciaProfessorUpdate,
     PreferenciaProfessorResponse
 )
+from app.api.routers.auth import obter_usuario_atual
 
 router = APIRouter(
     prefix="/api/professores",
     tags=["Módulo de Preferências dos Professores"]
 )
 
-# ---------------------------------------------------------
-# MOCK DA AUTENTICAÇÃO (A substituir pelo JWT futuramente)
-def verificar_admin():
-    pass # Permite testar os endpoints agora
-# ---------------------------------------------------------
-
 
 @router.post(
     "/{professor_id}/preferencias",
     response_model=PreferenciaProfessorResponse,
     status_code=status.HTTP_201_CREATED,
-    dependencies=[Depends(verificar_admin)]
+    dependencies=[Depends(obter_usuario_atual)]
 )
 def criar_preferencia_professor(
     professor_id: int,
@@ -90,7 +85,7 @@ def criar_preferencia_professor(
 @router.get(
     "/{professor_id}/preferencias",
     response_model=PreferenciaProfessorResponse,
-    dependencies=[Depends(verificar_admin)]
+    dependencies=[Depends(obter_usuario_atual)]
 )
 def obter_preferencias_professor(
     professor_id: int,
@@ -122,7 +117,7 @@ def obter_preferencias_professor(
 @router.put(
     "/{professor_id}/preferencias",
     response_model=PreferenciaProfessorResponse,
-    dependencies=[Depends(verificar_admin)]
+    dependencies=[Depends(obter_usuario_atual)]
 )
 def atualizar_preferencias_professor(
     professor_id: int,
@@ -185,7 +180,7 @@ def atualizar_preferencias_professor(
 @router.delete(
     "/{professor_id}/preferencias",
     status_code=status.HTTP_204_NO_CONTENT,
-    dependencies=[Depends(verificar_admin)]
+    dependencies=[Depends(obter_usuario_atual)]
 )
 def deletar_preferencias_professor(
     professor_id: int,
@@ -210,7 +205,7 @@ def deletar_preferencias_professor(
 @router.get(
     "/preferencias",
     response_model=List[PreferenciaProfessorResponse],
-    dependencies=[Depends(verificar_admin)]
+    dependencies=[Depends(obter_usuario_atual)]
 )
 def listar_todas_preferencias(db: Session = Depends(get_db)):
     """Lista as preferências de todos os professores."""
@@ -221,7 +216,7 @@ def listar_todas_preferencias(db: Session = Depends(get_db)):
 @router.get(
     "/preferencias/{preferencia_id}",
     response_model=PreferenciaProfessorResponse,
-    dependencies=[Depends(verificar_admin)]
+    dependencies=[Depends(obter_usuario_atual)]
 )
 def obter_preferencia_por_id(
     preferencia_id: int,

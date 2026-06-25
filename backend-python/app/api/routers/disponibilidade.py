@@ -9,22 +9,9 @@ from app.schemas.disponibilidade import (
     RestricaoResponse,
     validar_e_normalizar_horarios,
 )
+from app.api.routers.auth import obter_usuario_atual, verificar_admin_ou_coordenador
 
 router = APIRouter(prefix="/api", tags=["Módulo de Restrições e Preferências"])
-
-# ---------------------------------------------------------
-# MOCK DA AUTENTICAÇÃO (A substituir pelo JWT futuramente)
-#
-# Nesta fase os PROFESSORES terão login e informam a própria disponibilidade.
-# Quando o JWT existir, esta dependência deve:
-#   - validar o token (401 se ausente/inválido);
-#   - no POST/GET de /professores/{professor_id}/preferencias, permitir que um
-#     PROFESSOR só acesse o PRÓPRIO professor_id (token.sub == professor_id),
-#     enquanto ADMIN/COORDENADOR podem acessar qualquer um (403 caso contrário);
-#   - em /semestres/.../restricoes e /restricoes/{id}, restringir a ADMIN/COORD.
-def obter_usuario_atual():
-    pass  # Permite testar os endpoints agora
-# ---------------------------------------------------------
 
 
 @router.post(
@@ -111,7 +98,7 @@ def consultar_preferencias(
 @router.get(
     "/semestres/{semestre_id}/restricoes",
     response_model=List[RestricaoResponse],
-    dependencies=[Depends(obter_usuario_atual)],
+    dependencies=[Depends(verificar_admin_ou_coordenador)],
 )
 def listar_restricoes_do_semestre(semestre_id: int, db: Session = Depends(get_db)):
     """Lista todas as restrições do semestre (uma por professor)."""
@@ -126,7 +113,7 @@ def listar_restricoes_do_semestre(semestre_id: int, db: Session = Depends(get_db
 @router.delete(
     "/restricoes/{restricao_id}",
     status_code=status.HTTP_204_NO_CONTENT,
-    dependencies=[Depends(obter_usuario_atual)],
+    dependencies=[Depends(verificar_admin_ou_coordenador)],
 )
 def remover_restricao(restricao_id: int, db: Session = Depends(get_db)):
     """Remove uma restrição específica."""

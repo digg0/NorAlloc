@@ -12,14 +12,11 @@ from app.schemas.oferta_disciplina import (
     OfertaDisciplinaUpdate,
     OfertaDisciplinaResponse,
 )
+from app.api.routers.auth import verificar_admin_ou_coordenador
 
 router = APIRouter(
     prefix="/api/ofertas", tags=["Módulo de Cadastros Base - Ofertas de Disciplina"]
 )
-
-
-def verificar_admin():
-    pass  
 
 
 def _validar_vinculos(
@@ -52,15 +49,18 @@ def _validar_vinculos(
 @router.get(
     "",
     response_model=List[OfertaDisciplinaResponse],
-    dependencies=[Depends(verificar_admin)],
+    dependencies=[Depends(verificar_admin_ou_coordenador)],
 )
 def listar_ofertas(
     turma_id: Optional[int] = None,
     professor_id: Optional[int] = None,
+    semestre_id: Optional[int] = None,
     db: Session = Depends(get_db),
 ):
-    
     query = db.query(OfertaDisciplina)
+    if semestre_id:
+        turma_ids = [t.id for t in db.query(Turma).filter(Turma.semestre_id == semestre_id).all()]
+        query = query.filter(OfertaDisciplina.turma_id.in_(turma_ids))
     if turma_id:
         query = query.filter(OfertaDisciplina.turma_id == turma_id)
     if professor_id:
@@ -71,7 +71,7 @@ def listar_ofertas(
 @router.get(
     "/{oferta_id}",
     response_model=OfertaDisciplinaResponse,
-    dependencies=[Depends(verificar_admin)],
+    dependencies=[Depends(verificar_admin_ou_coordenador)],
 )
 def obter_oferta(oferta_id: int, db: Session = Depends(get_db)):
     
@@ -87,7 +87,7 @@ def obter_oferta(oferta_id: int, db: Session = Depends(get_db)):
     "",
     response_model=OfertaDisciplinaResponse,
     status_code=status.HTTP_201_CREATED,
-    dependencies=[Depends(verificar_admin)],
+    dependencies=[Depends(verificar_admin_ou_coordenador)],
 )
 def criar_oferta(dados: OfertaDisciplinaCreate, db: Session = Depends(get_db)):
     
@@ -122,7 +122,7 @@ def criar_oferta(dados: OfertaDisciplinaCreate, db: Session = Depends(get_db)):
 @router.put(
     "/{oferta_id}",
     response_model=OfertaDisciplinaResponse,
-    dependencies=[Depends(verificar_admin)],
+    dependencies=[Depends(verificar_admin_ou_coordenador)],
 )
 def atualizar_oferta(
     oferta_id: int, dados: OfertaDisciplinaUpdate, db: Session = Depends(get_db)
@@ -153,7 +153,7 @@ def atualizar_oferta(
 @router.delete(
     "/{oferta_id}",
     status_code=status.HTTP_204_NO_CONTENT,
-    dependencies=[Depends(verificar_admin)],
+    dependencies=[Depends(verificar_admin_ou_coordenador)],
 )
 def remover_oferta(oferta_id: int, db: Session = Depends(get_db)):
     oferta = db.query(OfertaDisciplina).filter(OfertaDisciplina.id == oferta_id).first()
