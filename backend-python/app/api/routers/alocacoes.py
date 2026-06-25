@@ -149,6 +149,20 @@ def gerar_grade(
     return solver_service.gerar_grade(semestre_id, db, curso_id=curso_id_coordenador)
 
 
+@router.delete("/semestre/{semestre_id}")
+def limpar_grade(
+    semestre_id: int,
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(obter_usuario_atual),
+):
+    """Remove todas as alocações do semestre (coordenador: só do próprio
+    curso), sem apagar ofertas/turmas/disciplinas — útil para gerar a grade
+    de novo do zero."""
+    curso_id_coordenador = obter_curso_id_coordenador(usuario, db)
+    removidas = solver_service.limpar_grade(semestre_id, db, curso_id=curso_id_coordenador)
+    return {"removidas": removidas}
+
+
 # ==========================
 # EDIÇÃO MANUAL
 # ==========================

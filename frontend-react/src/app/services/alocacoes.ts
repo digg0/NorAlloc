@@ -69,6 +69,13 @@ export async function gerarGrade(semestreId: number): Promise<GerarGradeResultad
   return { sucesso: resultado.sucesso, mensagem: resultado.mensagem, totalAlocacoes: resultado.total_alocacoes };
 }
 
+export async function limparGrade(semestreId: number): Promise<number> {
+  const resultado = await apiFetch<{ removidas: number }>(`/alocacoes/semestre/${semestreId}`, {
+    method: 'DELETE',
+  });
+  return resultado.removidas;
+}
+
 export async function listarAlocacoesPorSemestre(semestreId: number): Promise<AlocacaoUI[]> {
   const dados = await apiFetch<AlocacaoBackend[]>(`/alocacoes/semestre/${semestreId}`);
   return dados.map(paraUI);

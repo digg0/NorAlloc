@@ -98,6 +98,32 @@ def _calcular_prioridade_professores(professores: Dict[int, Professor]) -> Dict[
     return {p.id: total - indice for indice, p in enumerate(ordenados)}
 
 
+def limpar_grade(semestre_id: int, db: Session, curso_id: Optional[int] = None) -> int:
+    """Remove todas as alocações do semestre (ou só do curso do coordenador,
+    quando informado), sem tocar nas ofertas/turmas/disciplinas. Retorna
+    quantas alocações foram removidas."""
+    query_turmas = db.query(Turma).filter(Turma.semestre_id == semestre_id)
+    if curso_id is not None:
+        query_turmas = query_turmas.filter(Turma.curso_id == curso_id)
+    turma_ids = [t.id for t in query_turmas.all()]
+    if not turma_ids:
+        return 0
+
+    oferta_ids = [
+        o.id for o in db.query(OfertaDisciplina).filter(OfertaDisciplina.turma_id.in_(turma_ids)).all()
+    ]
+    if not oferta_ids:
+        return 0
+
+    removidas = (
+        db.query(Alocacao)
+        .filter(Alocacao.oferta_id.in_(oferta_ids))
+        .delete(synchronize_session=False)
+    )
+    db.commit()
+    return removidas
+
+
 def gerar_grade(semestre_id: int, db: Session, curso_id: Optional[int] = None) -> GerarGradeResponse:
     """Gera a grade do semestre. Se `curso_id` for informado (coordenador
     logado), gera apenas para as turmas daquele curso — mas continua

@@ -4,7 +4,7 @@ import { listarTurmasBackend, type TurmaBackendUI } from '../services/turmasBack
 import { listarDisciplinasBackend, type DisciplinaBackendUI } from '../services/disciplinasBackend';
 import { listarProfessores, type ProfessorUI } from '../services/professores';
 import { listarHorarios, type HorarioUI } from '../services/horarios';
-import { gerarGrade, listarAlocacoesPorSemestre, moverAlocacao, type AlocacaoUI } from '../services/alocacoes';
+import { gerarGrade, limparGrade, listarAlocacoesPorSemestre, moverAlocacao, type AlocacaoUI } from '../services/alocacoes';
 import { DIAS_UTEIS, DIA_LABEL, LINHAS_GRADE_PADRAO } from '../services/gradeSlots';
 
 export function GradeView() {
@@ -18,6 +18,7 @@ export function GradeView() {
   const [semestreId, setSemestreId] = useState<number>(0);
   const [carregando, setCarregando] = useState(true);
   const [gerando, setGerando] = useState(false);
+  const [limpando, setLimpando] = useState(false);
   const [mensagem, setMensagem] = useState<{ tipo: 'ok' | 'erro'; texto: string } | null>(null);
   const [editando, setEditando] = useState<number | null>(null);
   const [novoHorarioId, setNovoHorarioId] = useState<number>(0);
@@ -72,6 +73,22 @@ export function GradeView() {
     }
   };
 
+  const handleLimpar = async () => {
+    if (!semestreId) return;
+    if (!window.confirm('Tem certeza que deseja limpar toda a grade deste semestre? Essa ação não pode ser desfeita.')) return;
+    setLimpando(true);
+    setMensagem(null);
+    try {
+      const removidas = await limparGrade(semestreId);
+      setMensagem({ tipo: 'ok', texto: `Grade limpa: ${removidas} alocação(ões) removida(s).` });
+      carregarAlocacoes(semestreId);
+    } catch (err: any) {
+      setMensagem({ tipo: 'erro', texto: err?.message || 'Erro ao limpar grade.' });
+    } finally {
+      setLimpando(false);
+    }
+  };
+
   const iniciarMover = (alocacaoId: number) => {
     setEditando(alocacaoId);
     setNovoHorarioId(0);
@@ -101,13 +118,22 @@ export function GradeView() {
             {semestres.map((s) => <option key={s.id} value={s.id}>{s.nome}</option>)}
           </select>
         </div>
-        <button
-          onClick={handleGerar}
-          disabled={gerando || !semestreId}
-          className="px-4 py-2 bg-[#1B4332] hover:bg-[#2D6A4F] disabled:bg-gray-300 text-white text-sm font-medium rounded-lg transition-colors"
-        >
-          {gerando ? 'Gerando grade…' : 'Gerar Grade (Solver Z3)'}
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleLimpar}
+            disabled={limpando || gerando || !semestreId}
+            className="px-4 py-2 bg-white border border-red-200 hover:bg-red-50 disabled:bg-gray-100 disabled:border-gray-200 disabled:text-gray-400 text-red-600 text-sm font-medium rounded-lg transition-colors"
+          >
+            {limpando ? 'Limpando…' : 'Limpar Grade'}
+          </button>
+          <button
+            onClick={handleGerar}
+            disabled={gerando || limpando || !semestreId}
+            className="px-4 py-2 bg-[#1B4332] hover:bg-[#2D6A4F] disabled:bg-gray-300 text-white text-sm font-medium rounded-lg transition-colors"
+          >
+            {gerando ? 'Gerando grade…' : 'Gerar Grade (Solver Z3)'}
+          </button>
+        </div>
       </div>
 
       {mensagem && (
