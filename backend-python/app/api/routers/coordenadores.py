@@ -7,17 +7,11 @@ from app.core.security import get_password_hash
 from app.models.coordenador import Coordenador
 from app.models.usuario import Usuario
 from app.schemas.coordenador import CoordenadorCreate, CoordenadorUpdate, CoordenadorResponse
+from app.api.routers.auth import verificar_admin
 
-# Tipo do usuário de login criado junto com o coordenador.
 TIPO_COORDENADOR = "COORDENADOR"
 
 router = APIRouter(prefix="/api/coordenadores", tags=["Módulo de Cadastros Base - Coordenadores"])
-
-# ---------------------------------------------------------
-# MOCK DA AUTENTICAÇÃO (A substituir pelo JWT futuramente)
-def verificar_admin():
-    pass # Permite testar os endpoints agora
-# ---------------------------------------------------------
 
 @router.get("", response_model=List[CoordenadorResponse], dependencies=[Depends(verificar_admin)])
 def listar_coordenadores(db: Session = Depends(get_db)):

@@ -18,7 +18,7 @@ import { listarDisciplinas, criarDisciplina, atualizarDisciplina, removerDiscipl
 import { listarTurmas, criarTurma, atualizarTurma, removerTurma } from './services/turmas';
 import { listarCoordenadores, criarCoordenador, atualizarCoordenador, removerCoordenador } from './services/coordenadores';
 import { listarSemestres, criarSemestre, atualizarSemestre, removerSemestre } from './services/semestres';
-import { listarOfertas, criarOferta, removerOferta } from './services/ofertas';
+import { listarOfertas, criarOferta, atualizarOferta, removerOferta } from './services/ofertas';
 import { listarAlocacoes, gerarGrade, type AlocacaoUI } from './services/alocacoes';
 import { emitirRelatorio, type RelatorioResponse } from './services/relatorios';
 import { consultarDisponibilidade, salvarDisponibilidade } from './services/disponibilidade';
@@ -188,7 +188,7 @@ type StatusEtapa = 'OFERTAS' | 'RESTRICOES' | 'SIMULACAO' | 'CONCLUIDO';
 type Turno = 'Manhã' | 'Tarde' | 'Noite';
 
 type Curso = { id: number; sigla: string; nome: string; nivel?: string };
-type Turma = { id: number; codigo: string; nome: string; turno: Turno; cursoId: number };
+type Turma = { id: number; codigo: string; nome: string; turno: Turno; cursoId: number; semestreId: number | null };
 type Disciplina = { id: number; nome: string; sigla: string; cargaHorariaCreditos: number; cursoId: number };
 type Professor = { id: number; nome: string; email: string; regimeTrabalho: RegimeTrabalho; areaAtuacao: string };
 type Coordenador = { id: number; nome: string; email: string; senha?: string; cursoId: number; ativo: boolean };
@@ -767,13 +767,13 @@ function AppShell({ currentUser, onLogout }: { currentUser: SessaoUsuario; onLog
   };
 
   type TurmaForm = Omit<Turma, 'id'>;
-  const emptyTurmaForm: TurmaForm = { codigo: '', nome: '', turno: 'Manhã', cursoId: 1 };
+  const emptyTurmaForm: TurmaForm = { codigo: '', nome: '', turno: 'Manhã', cursoId: 1, semestreId: null };
   const [turmaModal, setTurmaModal] = useState<{ open: boolean; editId: number | null }>({ open: false, editId: null });
   const [turmaForm, setTurmaForm] = useState<TurmaForm>(emptyTurmaForm);
   const [turmaFormError, setTurmaFormError] = useState('');
 
-  const openTurmaAdd = () => { setTurmaForm({ ...emptyTurmaForm, cursoId: cursos[0]?.id ?? 1 }); setTurmaFormError(''); setTurmaModal({ open: true, editId: null }); };
-  const openTurmaEdit = (t: Turma) => { setTurmaForm({ codigo: t.codigo, nome: t.nome, turno: t.turno, cursoId: t.cursoId }); setTurmaFormError(''); setTurmaModal({ open: true, editId: t.id }); };
+  const openTurmaAdd = () => { setTurmaForm({ ...emptyTurmaForm, cursoId: cursos[0]?.id ?? 1, semestreId: semestres[0]?.id ?? null }); setTurmaFormError(''); setTurmaModal({ open: true, editId: null }); };
+  const openTurmaEdit = (t: Turma) => { setTurmaForm({ codigo: t.codigo, nome: t.nome, turno: t.turno, cursoId: t.cursoId, semestreId: t.semestreId }); setTurmaFormError(''); setTurmaModal({ open: true, editId: t.id }); };
   const saveTurma = async () => {
     if (!turmaForm.nome.trim() || !turmaForm.codigo.trim()) { setTurmaFormError('Código e nome são obrigatórios.'); return; }
     try {
@@ -845,6 +845,32 @@ function AppShell({ currentUser, onLogout }: { currentUser: SessaoUsuario; onLog
   const [semFormError, setSemFormError] = useState('');
 
   const openSemAdd = () => { setSemForm(emptySemForm); setSemFormError(''); setSemModal({ open: true, editId: null }); };
+  const openWizardNew = () => {
+    setWizardStep(1);
+    setWizardSemestreId(null);
+    setWizardError('');
+    setSimulationComplete(false);
+    setSimulationRunning(false);
+    setWizardData({ nome: '', dataInicio: '', dataTermino: '', ofertas: [], restricoes: {} });
+    setCurrentView('wizard');
+  };
+  const openWizardForSemestre = (sem: Semestre) => {
+    const semOfertas = ofertas.filter(o => turmas.some(t => t.id === o.turmaId && t.semestreId === sem.id));
+    setWizardStep(2);
+    setWizardSemestreId(sem.id);
+    setWizardError('');
+    setSimulationComplete(false);
+    setSimulationRunning(false);
+    setWizardData({
+      nome: sem.nome,
+      dataInicio: sem.dataInicio,
+      dataTermino: sem.dataTermino,
+      ofertas: semOfertas.map(o => ({ id: o.id, turmaId: o.turmaId, disciplinaId: o.disciplinaId, professorId: o.professorId, cargaHoraria: o.cargaHoraria })),
+      restricoes: {},
+    });
+    setSelectedSemestreId(sem.id);
+    setCurrentView('wizard');
+  };
   const openSemEdit = (s: Semestre) => { setSemForm({ nome: s.nome, dataInicio: s.dataInicio, dataTermino: s.dataTermino, statusEtapa: s.statusEtapa }); setSemFormError(''); setSemModal({ open: true, editId: s.id }); };
   const saveSem = async () => {
     if (!semForm.nome.trim() || !semForm.dataInicio || !semForm.dataTermino) { setSemFormError('Nome e datas são obrigatórios.'); return; }
@@ -872,6 +898,8 @@ function AppShell({ currentUser, onLogout }: { currentUser: SessaoUsuario; onLog
   };
 
   const [wizardStep, setWizardStep] = useState(1);
+  const [wizardSemestreId, setWizardSemestreId] = useState<number | null>(null);
+  const [wizardError, setWizardError] = useState('');
   const [simulationRunning, setSimulationRunning] = useState(false);
   const [simulationComplete, setSimulationComplete] = useState(false);
   const [wizardData, setWizardData] = useState<WizardData>({
@@ -884,14 +912,42 @@ function AppShell({ currentUser, onLogout }: { currentUser: SessaoUsuario; onLog
 
   const [newOfertaTurma, setNewOfertaTurma] = useState<number>(0);
   const [newOfertaDisc, setNewOfertaDisc] = useState<number>(0);
+  const [newOfertaProf, setNewOfertaProf] = useState<number>(0);
   const [expandedProf, setExpandedProf] = useState<number | null>(null);
 
+  const advanceWizardStep = async () => {
+    setWizardError('');
+    if (wizardStep === 1) {
+      if (wizardSemestreId) {
+        setWizardStep(2);
+        return;
+      }
+      try {
+        const novo = await criarSemestre({
+          nome: wizardData.nome,
+          dataInicio: wizardData.dataInicio,
+          dataTermino: wizardData.dataTermino,
+          statusEtapa: 'OFERTAS',
+        });
+        setSemestres(ss => [...ss, novo]);
+        setWizardSemestreId(novo.id);
+        setSelectedSemestreId(novo.id);
+        setWizardStep(2);
+      } catch (err: any) {
+        setWizardError(err?.message || 'Erro ao criar semestre.');
+      }
+      return;
+    }
+    setWizardStep(s => s + 1);
+  };
+
   const runSimulation = async () => {
-    if (!selectedSemestreId) return;
+    const semId = wizardSemestreId || selectedSemestreId;
+    if (!semId) return;
     setSimulationRunning(true);
     setAlocacaoError('');
     try {
-      await gerarGrade(selectedSemestreId);
+      await gerarGrade(semId);
       const dados = await listarAlocacoes();
       setAlocacoes(dados);
       setSimulationComplete(true);
@@ -906,20 +962,64 @@ function AppShell({ currentUser, onLogout }: { currentUser: SessaoUsuario; onLog
   const finishWizard = () => {
     setCurrentView(isAdmin ? 'dashboard' : 'semestres');
     setWizardStep(1);
+    setWizardSemestreId(null);
+    setWizardError('');
     setSimulationComplete(false);
     setSimulationRunning(false);
+    setWizardData({ nome: '', dataInicio: '', dataTermino: '', ofertas: [], restricoes: {} });
   };
 
-  const addOferta = () => {
+  const addOferta = async () => {
     if (!newOfertaTurma || !newOfertaDisc) return;
     const already = wizardData.ofertas.some(o => o.turmaId === newOfertaTurma && o.disciplinaId === newOfertaDisc);
     if (already) return;
-    setWizardData(d => ({ ...d, ofertas: [...d.ofertas, { turmaId: newOfertaTurma, disciplinaId: newOfertaDisc }] }));
-    setNewOfertaTurma(0); setNewOfertaDisc(0);
+    const disc = disciplinas.find(d => d.id === newOfertaDisc);
+    try {
+      const nova = await criarOferta({
+        turmaId: newOfertaTurma,
+        disciplinaId: newOfertaDisc,
+        professorId: newOfertaProf || null,
+        cargaHoraria: disc?.cargaHorariaCreditos || 40,
+      });
+      setWizardData(d => ({ ...d, ofertas: [...d.ofertas, { id: nova.id, turmaId: nova.turmaId, disciplinaId: nova.disciplinaId, professorId: nova.professorId, cargaHoraria: nova.cargaHoraria }] }));
+      setNewOfertaTurma(0); setNewOfertaDisc(0); setNewOfertaProf(0);
+    } catch (err: any) {
+      setWizardError(err?.message || 'Erro ao criar oferta.');
+    }
   };
 
-  const removeOferta = (turmaId: number, disciplinaId: number) => {
+  const removeOferta = async (turmaId: number, disciplinaId: number) => {
+    const oferta = wizardData.ofertas.find(o => o.turmaId === turmaId && o.disciplinaId === disciplinaId);
+    if (oferta?.id) {
+      try { await removerOferta(oferta.id); } catch { /* best-effort */ }
+    }
     setWizardData(d => ({ ...d, ofertas: d.ofertas.filter(o => !(o.turmaId === turmaId && o.disciplinaId === disciplinaId)) }));
+  };
+
+  const turmasDoSemestre = wizardSemestreId
+    ? turmas.filter(t => t.semestreId === wizardSemestreId)
+    : turmas;
+  const selectedOfertaTurma = turmas.find(t => t.id === newOfertaTurma);
+  const disciplinasFiltradas = selectedOfertaTurma
+    ? disciplinas.filter(d => d.cursoId === selectedOfertaTurma.cursoId)
+    : disciplinas;
+
+  const [wizardTurmaForm, setWizardTurmaForm] = useState({ nome: '', cursoId: 0 });
+  const addTurmaToSemestre = async () => {
+    if (!wizardTurmaForm.nome.trim() || !wizardTurmaForm.cursoId || !wizardSemestreId) return;
+    try {
+      const nova = await criarTurma({
+        codigo: '',
+        nome: wizardTurmaForm.nome,
+        turno: 'Manhã',
+        cursoId: wizardTurmaForm.cursoId,
+        semestreId: wizardSemestreId,
+      });
+      setTurmas(ts => [...ts, nova]);
+      setWizardTurmaForm({ nome: '', cursoId: 0 });
+    } catch (err: any) {
+      setWizardError(err?.message || 'Erro ao criar turma.');
+    }
   };
 
   const updateRestricao = (professorId: number, patch: Partial<Restricao>) => {
@@ -1408,22 +1508,65 @@ function AppShell({ currentUser, onLogout }: { currentUser: SessaoUsuario; onLog
                     <motion.div key="s2" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
                       <CardHeader>
                         <CardTitle>2. Configuração de Ofertas</CardTitle>
-                        <CardDescription>Associe disciplinas às turmas que as receberão neste semestre.</CardDescription>
+                        <CardDescription>Primeiro vincule turmas a este semestre, depois associe disciplinas e professores.</CardDescription>
                       </CardHeader>
-                      <CardContent className="space-y-4">
+                      <CardContent className="space-y-6">
+                        <div className="border rounded-lg p-4 space-y-3 bg-muted/20">
+                          <Label className="font-medium">Adicionar turma ao semestre</Label>
+                          <div className="flex gap-2 items-end flex-wrap">
+                            <div className="flex-1 min-w-[140px] space-y-1">
+                              <Label className="text-xs">Curso</Label>
+                              <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" value={wizardTurmaForm.cursoId} onChange={e => setWizardTurmaForm(f => ({ ...f, cursoId: Number(e.target.value) }))}>
+                                <option value={0}>Selecionar curso…</option>
+                                {cursos.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
+                              </select>
+                            </div>
+                            <div className="flex-1 min-w-[160px] space-y-1">
+                              <Label className="text-xs">Nome da turma</Label>
+                              <Input placeholder="Ex.: ADS 5º sem (Manhã)" value={wizardTurmaForm.nome} onChange={e => setWizardTurmaForm(f => ({ ...f, nome: e.target.value }))} />
+                            </div>
+                            <Button onClick={addTurmaToSemestre} disabled={!wizardTurmaForm.nome.trim() || !wizardTurmaForm.cursoId}>
+                              <Plus className="mr-2 h-4 w-4" />Turma
+                            </Button>
+                          </div>
+                          {turmasDoSemestre.length > 0 && (
+                            <div className="flex flex-wrap gap-2 mt-2">
+                              {turmasDoSemestre.map(t => {
+                                const curso = cursos.find(c => c.id === t.cursoId);
+                                return <Badge key={t.id} variant="secondary">{t.nome}{curso ? ` — ${curso.nome}` : ''}</Badge>;
+                              })}
+                            </div>
+                          )}
+                          {turmasDoSemestre.length === 0 && (
+                            <p className="text-xs text-muted-foreground">Nenhuma turma vinculada a este semestre. Adicione pelo menos uma acima.</p>
+                          )}
+                        </div>
+
+                        <div className="space-y-3">
+                          <Label className="font-medium">Vincular disciplina e professor à turma</Label>
                         <div className="flex gap-2 items-end flex-wrap">
                           <div className="flex-1 min-w-[160px] space-y-1">
-                            <Label>Turma</Label>
-                            <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" value={newOfertaTurma} onChange={e => setNewOfertaTurma(Number(e.target.value))}>
+                            <Label className="text-xs">Turma</Label>
+                            <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" value={newOfertaTurma} onChange={e => { setNewOfertaTurma(Number(e.target.value)); setNewOfertaDisc(0); }}>
                               <option value={0}>Selecionar turma…</option>
-                              {turmas.map(t => <option key={t.id} value={t.id}>{t.nome}</option>)}
+                              {turmasDoSemestre.map(t => {
+                                const curso = cursos.find(c => c.id === t.cursoId);
+                                return <option key={t.id} value={t.id}>{t.nome}{curso ? ` (${curso.nome})` : ''}</option>;
+                              })}
                             </select>
                           </div>
                           <div className="flex-1 min-w-[200px] space-y-1">
-                            <Label>Disciplina</Label>
+                            <Label>Disciplina {selectedOfertaTurma ? `(${cursos.find(c => c.id === selectedOfertaTurma.cursoId)?.nome || ''})` : ''}</Label>
                             <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" value={newOfertaDisc} onChange={e => setNewOfertaDisc(Number(e.target.value))}>
                               <option value={0}>Selecionar disciplina…</option>
-                              {disciplinas.map(d => <option key={d.id} value={d.id}>{d.sigla} — {d.nome}</option>)}
+                              {disciplinasFiltradas.map(d => <option key={d.id} value={d.id}>{d.sigla} — {d.nome} ({d.cargaHorariaCreditos}h)</option>)}
+                            </select>
+                          </div>
+                          <div className="flex-1 min-w-[160px] space-y-1">
+                            <Label>Professor (opcional)</Label>
+                            <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" value={newOfertaProf} onChange={e => setNewOfertaProf(Number(e.target.value))}>
+                              <option value={0}>Definir depois…</option>
+                              {professores.map(p => <option key={p.id} value={p.id}>{p.nome}</option>)}
                             </select>
                           </div>
                           <Button onClick={addOferta} disabled={!newOfertaTurma || !newOfertaDisc}>
@@ -1439,19 +1582,21 @@ function AppShell({ currentUser, onLogout }: { currentUser: SessaoUsuario; onLog
                             <Table>
                               <TableHeader>
                                 <TableRow>
-                                  <TableHead>Turma</TableHead><TableHead>Turno</TableHead><TableHead>Disciplina</TableHead><TableHead>Créditos</TableHead><TableHead className="w-12"></TableHead>
+                                  <TableHead>Turma</TableHead><TableHead>Turno</TableHead><TableHead>Disciplina</TableHead><TableHead>CH</TableHead><TableHead>Professor</TableHead><TableHead className="w-12"></TableHead>
                                 </TableRow>
                               </TableHeader>
                               <TableBody>
                                 {wizardData.ofertas.map((o, i) => {
                                   const turma = turmas.find(t => t.id === o.turmaId);
                                   const disc = disciplinas.find(d => d.id === o.disciplinaId);
+                                  const prof = o.professorId ? professores.find(p => p.id === o.professorId) : null;
                                   return (
                                     <TableRow key={i}>
                                       <TableCell className="font-medium">{turma?.nome ?? '—'}</TableCell>
                                       <TableCell><Badge variant="outline">{turma?.turno ?? '—'}</Badge></TableCell>
                                       <TableCell>{disc ? `${disc.sigla} — ${disc.nome}` : '—'}</TableCell>
-                                      <TableCell>{disc?.cargaHorariaCreditos ?? '—'}</TableCell>
+                                      <TableCell>{disc?.cargaHorariaCreditos ?? '—'}h</TableCell>
+                                      <TableCell>{prof?.nome ?? <span className="text-muted-foreground">A definir</span>}</TableCell>
                                       <TableCell>
                                         <Button variant="ghost" size="icon" className="text-destructive h-8 w-8" onClick={() => removeOferta(o.turmaId, o.disciplinaId)}>
                                           <X className="h-4 w-4" />
@@ -1464,6 +1609,7 @@ function AppShell({ currentUser, onLogout }: { currentUser: SessaoUsuario; onLog
                             </Table>
                           </div>
                         )}
+                        </div>
                       </CardContent>
                     </motion.div>
                   )}
@@ -1471,71 +1617,162 @@ function AppShell({ currentUser, onLogout }: { currentUser: SessaoUsuario; onLog
                   {wizardStep === 3 && (
                     <motion.div key="s3" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
                       <CardHeader>
-                        <CardTitle>3. Restrições dos Professores</CardTitle>
-                        <CardDescription>Marque os horários indisponíveis de cada professor e configure o limite de carga horária semanal.</CardDescription>
+                        <CardTitle>3. Alocação de Professores e Restrições</CardTitle>
+                        <CardDescription>Atribua um professor a cada oferta (turma/disciplina) e configure os horários indisponíveis.</CardDescription>
                       </CardHeader>
-                      <CardContent className="space-y-3">
-                        {professores.map(prof => {
-                          const r = wizardData.restricoes[prof.id];
-                          const blocked = r?.horariosBloqueados ?? [];
-                          const isExpanded = expandedProf === prof.id;
-                          return (
-                            <div key={prof.id} className="border rounded-lg overflow-hidden">
-                              <button
-                                type="button"
-                                className="w-full flex items-center justify-between p-4 hover:bg-muted/30 transition-colors text-left"
-                                onClick={() => setExpandedProf(isExpanded ? null : prof.id)}
-                              >
-                                <div className="flex items-center gap-3">
-                                  <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-sm">
-                                    {prof.nome.charAt(0)}
-                                  </div>
-                                  <div>
-                                    <p className="font-medium text-sm">{prof.nome}</p>
-                                    <p className="text-xs text-muted-foreground">
-                                      {REGIME_LABELS[prof.regimeTrabalho]} · {REGIME_MAX_CH[prof.regimeTrabalho]}
-                                      {blocked.length > 0 && ` · ${blocked.length} horário${blocked.length > 1 ? 's' : ''} bloqueado${blocked.length > 1 ? 's' : ''}`}
-                                    </p>
-                                  </div>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                  {blocked.length > 0 && (
-                                    <Badge variant="warning">
-                                      <ShieldAlert className="h-3 w-3 mr-1" />{blocked.length} bloqueio{blocked.length > 1 ? 's' : ''}
-                                    </Badge>
-                                  )}
-                                  <ChevronRight className={cn('h-4 w-4 text-muted-foreground transition-transform', isExpanded && 'rotate-90')} />
-                                </div>
-                              </button>
-                              {isExpanded && (
-                                <motion.div
-                                  initial={{ height: 0 }}
-                                  animate={{ height: 'auto' }}
-                                  exit={{ height: 0 }}
-                                  className="border-t px-4 pb-4 pt-3 space-y-4"
-                                >
-                                  <div className="space-y-1">
-                                    <Label htmlFor={`ch-${prof.id}`}>Limite CH semanal em sala (horas)</Label>
-                                    <Input
-                                      id={`ch-${prof.id}`}
-                                      type="number"
-                                      min={0}
-                                      max={REGIME_MAX_HOURS[prof.regimeTrabalho]}
-                                      value={r?.limiteCargaHoraria ?? ''}
-                                      placeholder={`Máx: ${REGIME_MAX_HOURS[prof.regimeTrabalho]}h`}
-                                      className="w-40"
-                                      onChange={e => updateRestricao(prof.id, { limiteCargaHoraria: e.target.value ? Number(e.target.value) : undefined })}
-                                    />
-                                  </div>
-                                  <TimeSlotGrid
-                                    blocked={blocked}
-                                    onChange={horariosBloqueados => updateRestricao(prof.id, { horariosBloqueados })}
-                                  />
-                                </motion.div>
-                              )}
+                      <CardContent className="space-y-6">
+                        {/* Seção 1 — Alocação manual de professores às ofertas */}
+                        <div className="space-y-3">
+                          <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Alocação de Professores às Ofertas</h3>
+                          {wizardData.ofertas.length === 0 ? (
+                            <p className="text-sm text-muted-foreground py-4 text-center">Nenhuma oferta criada. Volte ao passo 2 para adicionar ofertas.</p>
+                          ) : (
+                            <Table>
+                              <TableHeader>
+                                <TableRow>
+                                  <TableHead>Turma</TableHead>
+                                  <TableHead>Disciplina</TableHead>
+                                  <TableHead>CH</TableHead>
+                                  <TableHead>Professor</TableHead>
+                                </TableRow>
+                              </TableHeader>
+                              <TableBody>
+                                {wizardData.ofertas.map(o => {
+                                  const turma = turmas.find(t => t.id === o.turmaId);
+                                  const disc = disciplinas.find(d => d.id === o.disciplinaId);
+                                  return (
+                                    <TableRow key={`${o.turmaId}-${o.disciplinaId}`}>
+                                      <TableCell>
+                                        <Badge variant="outline">{turma?.nome ?? `Turma #${o.turmaId}`}</Badge>
+                                      </TableCell>
+                                      <TableCell className="font-medium">{disc?.nome ?? `Disc #${o.disciplinaId}`}</TableCell>
+                                      <TableCell>{o.cargaHoraria ?? '—'}h</TableCell>
+                                      <TableCell>
+                                        <select
+                                          className="flex h-9 w-full max-w-[220px] rounded-md border border-input bg-background px-2 py-1 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                                          value={o.professorId ?? ''}
+                                          onChange={async (e) => {
+                                            const profId = Number(e.target.value) || null;
+                                            setWizardData(d => ({
+                                              ...d,
+                                              ofertas: d.ofertas.map(of =>
+                                                of.turmaId === o.turmaId && of.disciplinaId === o.disciplinaId
+                                                  ? { ...of, professorId: profId }
+                                                  : of
+                                              ),
+                                            }));
+                                            if (o.id) {
+                                              try {
+                                                await atualizarOferta(o.id, { professorId: profId });
+                                              } catch { /* best-effort */ }
+                                            }
+                                          }}
+                                        >
+                                          <option value="">Selecionar professor…</option>
+                                          {professores.map(p => (
+                                            <option key={p.id} value={p.id}>{p.nome}</option>
+                                          ))}
+                                        </select>
+                                      </TableCell>
+                                    </TableRow>
+                                  );
+                                })}
+                              </TableBody>
+                            </Table>
+                          )}
+                          {wizardData.ofertas.length > 0 && (
+                            <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                              <span>{wizardData.ofertas.filter(o => o.professorId).length} de {wizardData.ofertas.length} ofertas com professor atribuído</span>
                             </div>
-                          );
-                        })}
+                          )}
+                        </div>
+
+                        {/* Seção 2 — Restrições de horários dos professores */}
+                        <div className="border-t pt-4 space-y-3">
+                          <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Restrições de Horário dos Professores</h3>
+                          {professores.map(prof => {
+                            const r = wizardData.restricoes[prof.id];
+                            const blocked = r?.horariosBloqueados ?? [];
+                            const isExpanded = expandedProf === prof.id;
+                            const ofertasDoProf = wizardData.ofertas.filter(o => o.professorId === prof.id);
+                            return (
+                              <div key={prof.id} className="border rounded-lg overflow-hidden">
+                                <button
+                                  type="button"
+                                  className="w-full flex items-center justify-between p-4 hover:bg-muted/30 transition-colors text-left"
+                                  onClick={() => setExpandedProf(isExpanded ? null : prof.id)}
+                                >
+                                  <div className="flex items-center gap-3">
+                                    <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-sm">
+                                      {prof.nome.charAt(0)}
+                                    </div>
+                                    <div>
+                                      <p className="font-medium text-sm">{prof.nome}</p>
+                                      <p className="text-xs text-muted-foreground">
+                                        {REGIME_LABELS[prof.regimeTrabalho]} · {REGIME_MAX_CH[prof.regimeTrabalho]}
+                                        {ofertasDoProf.length > 0 && ` · ${ofertasDoProf.length} oferta${ofertasDoProf.length > 1 ? 's' : ''}`}
+                                        {blocked.length > 0 && ` · ${blocked.length} bloqueio${blocked.length > 1 ? 's' : ''}`}
+                                      </p>
+                                    </div>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    {ofertasDoProf.length > 0 && (
+                                      <Badge variant="default">{ofertasDoProf.length} aula{ofertasDoProf.length > 1 ? 's' : ''}</Badge>
+                                    )}
+                                    {blocked.length > 0 && (
+                                      <Badge variant="warning">
+                                        <ShieldAlert className="h-3 w-3 mr-1" />{blocked.length} bloqueio{blocked.length > 1 ? 's' : ''}
+                                      </Badge>
+                                    )}
+                                    <ChevronRight className={cn('h-4 w-4 text-muted-foreground transition-transform', isExpanded && 'rotate-90')} />
+                                  </div>
+                                </button>
+                                {isExpanded && (
+                                  <motion.div
+                                    initial={{ height: 0 }}
+                                    animate={{ height: 'auto' }}
+                                    exit={{ height: 0 }}
+                                    className="border-t px-4 pb-4 pt-3 space-y-4"
+                                  >
+                                    {ofertasDoProf.length > 0 && (
+                                      <div className="space-y-1">
+                                        <Label className="text-xs text-muted-foreground">Ofertas atribuídas</Label>
+                                        <div className="flex flex-wrap gap-1.5">
+                                          {ofertasDoProf.map(o => {
+                                            const turma = turmas.find(t => t.id === o.turmaId);
+                                            const disc = disciplinas.find(d => d.id === o.disciplinaId);
+                                            return (
+                                              <Badge key={`${o.turmaId}-${o.disciplinaId}`} variant="secondary" className="text-xs">
+                                                {turma?.nome} — {disc?.nome} ({o.cargaHoraria ?? 0}h)
+                                              </Badge>
+                                            );
+                                          })}
+                                        </div>
+                                      </div>
+                                    )}
+                                    <div className="space-y-1">
+                                      <Label htmlFor={`ch-${prof.id}`}>Limite CH semanal em sala (horas)</Label>
+                                      <Input
+                                        id={`ch-${prof.id}`}
+                                        type="number"
+                                        min={0}
+                                        max={REGIME_MAX_HOURS[prof.regimeTrabalho]}
+                                        value={r?.limiteCargaHoraria ?? ''}
+                                        placeholder={`Máx: ${REGIME_MAX_HOURS[prof.regimeTrabalho]}h`}
+                                        className="w-40"
+                                        onChange={e => updateRestricao(prof.id, { limiteCargaHoraria: e.target.value ? Number(e.target.value) : undefined })}
+                                      />
+                                    </div>
+                                    <TimeSlotGrid
+                                      blocked={blocked}
+                                      onChange={horariosBloqueados => updateRestricao(prof.id, { horariosBloqueados })}
+                                    />
+                                  </motion.div>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
                       </CardContent>
                     </motion.div>
                   )}
@@ -1553,7 +1790,7 @@ function AppShell({ currentUser, onLogout }: { currentUser: SessaoUsuario; onLog
                               <Play className="h-10 w-10 text-primary ml-1" />
                             </div>
                             <div className="text-center space-y-1">
-                              <p className="font-medium">{wizardData.ofertas.length} oferta{wizardData.ofertas.length !== 1 ? 's' : ''} configurada{wizardData.ofertas.length !== 1 ? 's' : ''}</p>
+                              <p className="font-medium">{wizardData.ofertas.length} oferta{wizardData.ofertas.length !== 1 ? 's' : ''} · {wizardData.ofertas.filter(o => o.professorId).length} com professor alocado</p>
                               <p className="text-sm text-muted-foreground">
                                 {Object.values(wizardData.restricoes).filter(r => r.horariosBloqueados.length > 0).length} professor(es) com restrições de horário.
                               </p>
@@ -1590,7 +1827,7 @@ function AppShell({ currentUser, onLogout }: { currentUser: SessaoUsuario; onLog
                               </div>
                               <div className="grid grid-cols-3 gap-3 w-full mt-2 text-left">
                                 {[
-                                  { label: 'Aulas Alocadas', value: `${wizardData.ofertas.length}/${wizardData.ofertas.length}` },
+                                  { label: 'Professores Alocados', value: `${wizardData.ofertas.filter(o => o.professorId).length}/${wizardData.ofertas.length}` },
                                   { label: 'Conflitos', value: '0' },
                                   { label: 'CH Média', value: '18h' },
                                 ].map(item => (
@@ -1612,9 +1849,10 @@ function AppShell({ currentUser, onLogout }: { currentUser: SessaoUsuario; onLog
                   <Button variant="outline" onClick={() => setWizardStep(s => Math.max(1, s - 1))} disabled={wizardStep === 1 || simulationRunning}>
                     <ChevronLeft className="mr-2 h-4 w-4" />Voltar
                   </Button>
+                  {wizardError && <p className="text-sm text-destructive">{wizardError}</p>}
                   {wizardStep < 4 ? (
                     <Button
-                      onClick={() => setWizardStep(s => s + 1)}
+                      onClick={advanceWizardStep}
                       disabled={
                         (wizardStep === 1 && (!wizardData.nome || !wizardData.dataInicio || !wizardData.dataTermino || wizardData.dataTermino <= wizardData.dataInicio)) ||
                         (wizardStep === 2 && wizardData.ofertas.length === 0)
@@ -1796,6 +2034,7 @@ function AppShell({ currentUser, onLogout }: { currentUser: SessaoUsuario; onLog
                       <TableHead>Código</TableHead>
                       <TableHead>Nome</TableHead>
                       <TableHead>Curso</TableHead>
+                      <TableHead>Semestre</TableHead>
                       <TableHead>Turno</TableHead>
                       <TableHead className="text-right">Ações</TableHead>
                     </TableRow>
@@ -1805,11 +2044,13 @@ function AppShell({ currentUser, onLogout }: { currentUser: SessaoUsuario; onLog
                       .filter(t => !turmaSearch || t.nome.toLowerCase().includes(turmaSearch.toLowerCase()) || t.codigo.toLowerCase().includes(turmaSearch.toLowerCase()))
                       .map(turma => {
                         const curso = cursos.find(c => c.id === turma.cursoId);
+                        const sem = semestres.find(s => s.id === turma.semestreId);
                         return (
                           <TableRow key={turma.id}>
                             <TableCell><code className="text-xs bg-muted px-1.5 py-0.5 rounded">{turma.codigo}</code></TableCell>
                             <TableCell className="font-medium">{turma.nome}</TableCell>
                             <TableCell className="text-muted-foreground">{curso?.sigla ?? '—'}</TableCell>
+                            <TableCell>{sem ? <Badge variant="outline">{sem.nome}</Badge> : <span className="text-muted-foreground">—</span>}</TableCell>
                             <TableCell>
                               <Badge variant={turma.turno === 'Manhã' ? 'default' : turma.turno === 'Tarde' ? 'warning' : 'secondary'}>
                                 {turma.turno}
@@ -1827,7 +2068,7 @@ function AppShell({ currentUser, onLogout }: { currentUser: SessaoUsuario; onLog
                         );
                       })}
                     {turmas.filter(t => !turmaSearch || t.nome.toLowerCase().includes(turmaSearch.toLowerCase()) || t.codigo.toLowerCase().includes(turmaSearch.toLowerCase())).length === 0 && (
-                      <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-8">Nenhuma turma encontrada.</TableCell></TableRow>
+                      <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">Nenhuma turma encontrada.</TableCell></TableRow>
                     )}
                   </TableBody>
                 </Table>
@@ -1842,10 +2083,7 @@ function AppShell({ currentUser, onLogout }: { currentUser: SessaoUsuario; onLog
                   <p className="text-muted-foreground">Histórico e acompanhamento de etapas do fluxo de alocação.</p>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Button variant="outline" onClick={() => setCurrentView('alocacoes')}>
-                    <Play className="mr-2 h-4 w-4" />Assistente
-                  </Button>
-                  <Button onClick={openSemAdd}>
+                  <Button onClick={openWizardNew}>
                     <Plus className="mr-2 h-4 w-4" />Novo Semestre
                   </Button>
                 </div>
@@ -1859,34 +2097,49 @@ function AppShell({ currentUser, onLogout }: { currentUser: SessaoUsuario; onLog
                 ))}
               </div>
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {semestres.map(sem => (
-                  <Card key={sem.id} className="relative overflow-hidden">
-                    {sem.statusEtapa !== 'CONCLUIDO' && (
-                      <div className="absolute top-0 right-0 w-16 h-16 pointer-events-none">
-                        <div className="absolute transform rotate-45 bg-primary text-primary-foreground text-[10px] font-bold py-1 right-[-35px] top-[15px] w-[120px] text-center">
-                          ATIVO
+                {semestres.map(sem => {
+                  const semTurmas = turmas.filter(t => t.semestreId === sem.id);
+                  const semOfertas = ofertas.filter(o => semTurmas.some(t => t.id === o.turmaId));
+                  const profsAlocados = semOfertas.filter(o => o.professorId).length;
+                  return (
+                    <Card key={sem.id} className="relative overflow-hidden">
+                      {sem.statusEtapa !== 'CONCLUIDO' && (
+                        <div className="absolute top-0 right-0 w-16 h-16 pointer-events-none">
+                          <div className="absolute transform rotate-45 bg-primary text-primary-foreground text-[10px] font-bold py-1 right-[-35px] top-[15px] w-[120px] text-center">
+                            ATIVO
+                          </div>
                         </div>
-                      </div>
-                    )}
-                    <CardHeader>
-                      <CardTitle className="text-xl">{sem.nome}</CardTitle>
-                      <CardDescription>{fmtDate(sem.dataInicio)} até {fmtDate(sem.dataTermino)}</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <Badge variant={etapaBadgeVariant(sem.statusEtapa)}>{ETAPA_LABELS[sem.statusEtapa]}</Badge>
-                    </CardContent>
-                    <CardFooter className="gap-2">
-                      <Button variant="outline" className="flex-1" onClick={() => openSemEdit(sem)}>
-                        <Edit className="mr-2 h-4 w-4" />Editar
-                      </Button>
-                      <Button variant="ghost" size="icon" className="text-destructive shrink-0" onClick={() => deleteSem(sem.id)}>
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </CardFooter>
-                  </Card>
-                ))}
+                      )}
+                      <CardHeader>
+                        <CardTitle className="text-xl">{sem.nome}</CardTitle>
+                        <CardDescription>{fmtDate(sem.dataInicio)} até {fmtDate(sem.dataTermino)}</CardDescription>
+                      </CardHeader>
+                      <CardContent className="space-y-2">
+                        <Badge variant={etapaBadgeVariant(sem.statusEtapa)}>{ETAPA_LABELS[sem.statusEtapa]}</Badge>
+                        <div className="flex gap-3 text-xs text-muted-foreground">
+                          <span>{semTurmas.length} turma{semTurmas.length !== 1 ? 's' : ''}</span>
+                          <span>·</span>
+                          <span>{semOfertas.length} oferta{semOfertas.length !== 1 ? 's' : ''}</span>
+                          <span>·</span>
+                          <span>{profsAlocados}/{semOfertas.length} prof. alocado{profsAlocados !== 1 ? 's' : ''}</span>
+                        </div>
+                      </CardContent>
+                      <CardFooter className="gap-2">
+                        <Button className="flex-1" onClick={() => openWizardForSemestre(sem)}>
+                          <Play className="mr-2 h-4 w-4" />Configurar
+                        </Button>
+                        <Button variant="outline" size="icon" onClick={() => openSemEdit(sem)}>
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="icon" className="text-destructive shrink-0" onClick={() => deleteSem(sem.id)}>
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </CardFooter>
+                    </Card>
+                  );
+                })}
                 {semestres.length === 0 && (
-                  <p className="text-sm text-muted-foreground col-span-full text-center py-10">Nenhum semestre cadastrado.</p>
+                  <p className="text-sm text-muted-foreground col-span-full text-center py-10">Nenhum semestre cadastrado. Clique em "Novo Semestre" para começar.</p>
                 )}
               </div>
             </motion.div>
@@ -2687,10 +2940,21 @@ function AppShell({ currentUser, onLogout }: { currentUser: SessaoUsuario; onLog
                         <option value="Noite">Noite</option>
                       </select>
                     </div>
+                    <div>
+                      <Label className="text-xs mb-1.5 block">Semestre <span className="text-destructive">*</span></Label>
+                      <select
+                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        value={turmaForm.semestreId ?? ''}
+                        onChange={e => setTurmaForm(f => ({ ...f, semestreId: Number(e.target.value) || null }))}
+                      >
+                        <option value="">Selecionar semestre…</option>
+                        {semestres.map(s => <option key={s.id} value={s.id}>{s.nome}</option>)}
+                      </select>
+                    </div>
                   </div>
                   <div className="px-6 py-4 border-t flex justify-end gap-2 bg-muted/30">
                     <Button variant="outline" onClick={() => setTurmaModal({ open: false, editId: null })}>Cancelar</Button>
-                    <Button onClick={saveTurma}><Check className="mr-2 h-4 w-4" />{turmaModal.editId !== null ? 'Salvar alterações' : 'Cadastrar'}</Button>
+                    <Button onClick={saveTurma} disabled={!turmaForm.semestreId}><Check className="mr-2 h-4 w-4" />{turmaModal.editId !== null ? 'Salvar alterações' : 'Cadastrar'}</Button>
                   </div>
                 </motion.div>
               </motion.div>

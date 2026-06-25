@@ -59,3 +59,21 @@ def obter_usuario_atual(
 def usuario_logado(usuario: Usuario = Depends(obter_usuario_atual)):
     """Retorna os dados do usuário autenticado pelo token."""
     return usuario
+
+
+def verificar_admin(usuario: Usuario = Depends(obter_usuario_atual)) -> Usuario:
+    if usuario.tipo != "ADMIN":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Acesso restrito a administradores.",
+        )
+    return usuario
+
+
+def verificar_admin_ou_coordenador(usuario: Usuario = Depends(obter_usuario_atual)) -> Usuario:
+    if usuario.tipo not in ("ADMIN", "COORDENADOR"):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Acesso restrito a administradores e coordenadores.",
+        )
+    return usuario

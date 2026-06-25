@@ -55,6 +55,19 @@ export async function criarOferta(dados: OfertaFormData): Promise<OfertaUI> {
   return paraUI(oferta);
 }
 
+export async function atualizarOferta(id: number, dados: Partial<OfertaFormData>): Promise<OfertaUI> {
+  const body: Record<string, unknown> = {};
+  if (dados.turmaId !== undefined) body.turma_id = dados.turmaId;
+  if (dados.disciplinaId !== undefined) body.disciplina_id = dados.disciplinaId;
+  if (dados.professorId !== undefined) body.professor_id = dados.professorId ?? null;
+  if (dados.cargaHoraria !== undefined) body.carga_horaria = dados.cargaHoraria;
+  const atualizada = await apiFetch<OfertaBackend>(`/api/ofertas/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(body),
+  });
+  return paraUI(atualizada);
+}
+
 export async function removerOferta(id: number): Promise<void> {
   await apiFetch<void>(`/api/ofertas/${id}`, { method: 'DELETE' });
 }

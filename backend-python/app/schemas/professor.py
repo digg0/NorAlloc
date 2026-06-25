@@ -1,5 +1,6 @@
+from datetime import date
 from pydantic import BaseModel, EmailStr, Field, ConfigDict
-from typing import Optional
+from typing import Literal, Optional
 
 
 class PreferenciaProfessorBase(BaseModel):
@@ -66,3 +67,19 @@ class ProfessorResponse(ProfessorBase):
     id: int
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class SituacaoProfessorResponse(BaseModel):
+    situacao: str
+    carga_disponivel: int
+    data_inicio: Optional[date] = None
+    data_fim: Optional[date] = None
+    observacao: Optional[str] = None
+
+
+class SituacaoProfessorUpdate(BaseModel):
+    situacao: Literal["ativo", "afastado", "carga_reduzida"]
+    carga_disponivel: int = Field(..., ge=0)
+    data_inicio: Optional[date] = None
+    data_fim: Optional[date] = None
+    observacao: Optional[str] = None

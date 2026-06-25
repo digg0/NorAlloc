@@ -6,27 +6,24 @@ from app.core.database import get_db
 from app.core.security import get_password_hash
 from app.models.professor import Professor
 from app.models.usuario import Usuario
-from app.schemas.professor import ProfessorCreate, ProfessorUpdate, ProfessorResponse
+from app.schemas.professor import (
+    ProfessorCreate, ProfessorUpdate, ProfessorResponse,
+    SituacaoProfessorResponse, SituacaoProfessorUpdate,
+)
+from app.api.routers.auth import verificar_admin, verificar_admin_ou_coordenador, obter_usuario_atual
 
 router = APIRouter(
     prefix="/api/professores",
     tags=["Módulo de Cadastros Base - Professores"]
 )
 
-# Tipo do usuário de login criado junto com o professor.
 TIPO_PROFESSOR = "PROFESSOR"
-
-# ---------------------------------------------------------
-# MOCK DA AUTENTICAÇÃO (A substituir pelo JWT futuramente)
-def verificar_admin():
-    pass # Permite testar os endpoints agora
-# ---------------------------------------------------------
 
 
 @router.get(
     "",
     response_model=List[ProfessorResponse],
-    dependencies=[Depends(verificar_admin)]
+    dependencies=[Depends(verificar_admin_ou_coordenador)]
 )
 def listar_professores(db: Session = Depends(get_db)):
     """Lista todos os professores cadastrados."""
@@ -36,7 +33,7 @@ def listar_professores(db: Session = Depends(get_db)):
 @router.get(
     "/{professor_id}",
     response_model=ProfessorResponse,
-    dependencies=[Depends(verificar_admin)]
+    dependencies=[Depends(verificar_admin_ou_coordenador)]
 )
 def obter_professor(professor_id: int, db: Session = Depends(get_db)):
     """Obtém os detalhes de um professor específico."""
@@ -180,3 +177,56 @@ def deletar_professor(professor_id: int, db: Session = Depends(get_db)):
     db.delete(db_professor)
     db.commit()
     return None
+
+
+# ==========================
+# SITUAÇÃO DO PROFESSOR
+# ==========================
+
+@router.get(
+    "/{professor_id}/situacao",
+    response_model=SituacaoProfessorResponse,
+    dependencies=[Depends(obter_usuario_atual)],
+)
+def obter_situacao(professor_id: int, db: Session = Depends(get_db)):
+    prof = db.query(Professor).filter(Professor.id == professor_id).first()
+    if not prof:
+        raise HTTPException(status_code=404, detail="Professor não encontrado.")
+    return SituacaoProfessorResponse(
+        situacao=prof.situacao or "ativo",
+        carga_disponivel=prof.carga_disponivel if prof.carga_disponivel is not None else (prof.carga_maxima or 0),
+        data_inicio=prof.data_inicio_situacao,
+        data_fim=prof.data_fim_situacao,
+        observacao=prof.observacao_situacao,
+    )
+
+
+@router.put(
+    "/{professor_id}/situacao",
+    response_model=SituacaoProfessorResponse,
+    dependencies=[Depends(obter_usuario_atual)],
+)
+def atualizar_situacao(
+    professor_id: int,
+    dados: SituacaoProfessorUpdate,
+    db: Session = Depends(get_db),
+):
+    prof = db.query(Professor).filter(Professor.id == professor_id).first()
+    if not prof:
+        raise HTTPException(status_code=404, detail="Professor não encontrado.")
+
+    prof.situacao = dados.situacao
+    prof.carga_disponivel = dados.carga_disponivel
+    prof.data_inicio_situacao = dados.data_inicio
+    prof.data_fim_situacao = dados.data_fim
+    prof.observacao_situacao = dados.observacao
+    db.commit()
+    db.refresh(prof)
+
+    return SituacaoProfessorResponse(
+        situacao=prof.situacao,
+        carga_disponivel=prof.carga_disponivel,
+        data_inicio=prof.data_inicio_situacao,
+        data_fim=prof.data_fim_situacao,
+        observacao=prof.observacao_situacao,
+    )

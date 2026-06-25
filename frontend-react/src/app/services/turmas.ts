@@ -16,6 +16,7 @@ export interface TurmaUI {
   nome: string;
   turno: Turno;
   cursoId: number;
+  semestreId: number | null;
 }
 
 export interface TurmaFormData {
@@ -23,6 +24,7 @@ export interface TurmaFormData {
   nome: string;
   turno: Turno;
   cursoId: number;
+  semestreId?: number | null;
 }
 
 function inferirTurno(nome: string): Turno {
@@ -49,6 +51,7 @@ function paraUI(t: TurmaBackend): TurmaUI {
     codigo: derivarCodigo(t.nome, t.id),
     turno: inferirTurno(t.nome),
     cursoId: t.curso_id ?? 0,
+    semestreId: t.semestre_id ?? null,
   };
 }
 
@@ -57,7 +60,7 @@ function paraBackend(f: TurmaFormData) {
     nome: f.nome,
     curso_id: f.cursoId,
     semestre_nivel: null,
-    semestre_id: null,
+    semestre_id: f.semestreId ?? null,
   };
 }
 
