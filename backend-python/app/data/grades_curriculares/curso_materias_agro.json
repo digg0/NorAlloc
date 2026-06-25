@@ -1,0 +1,450 @@
+{
+    "nome_curso": "Técnico Integrado em Agropecuária",
+    "nivel_curso": "Técnico",
+    "disciplinas": [
+        {
+            "nome": "ARTES I",
+            "codigo": "ART I",
+            "carga_horaria": 40,
+            "ano_semestre": 1
+        },
+        {
+            "nome": "ARTES II",
+            "codigo": "ART II",
+            "carga_horaria": 40,
+            "ano_semestre": 2
+        },
+        {
+            "nome": "ARTES III",
+            "codigo": "ART III",
+            "carga_horaria": 40,
+            "ano_semestre": 3
+        },
+        {
+            "nome": "EDUCAÇÃO FÍSICA INICIAL",
+            "codigo": "EFI",
+            "carga_horaria": 40,
+            "ano_semestre": 1
+        },
+        {
+            "nome": "EDUCAÇÃO FÍSICA II",
+            "codigo": "EF II",
+            "carga_horaria": 40,
+            "ano_semestre": 2
+        },
+        {
+            "nome": "EDUCAÇÃO FÍSICA III",
+            "codigo": "EF III",
+            "carga_horaria": 40,
+            "ano_semestre": 3
+        },
+        {
+            "nome": "LÍNGUA PORTUGUESA I",
+            "codigo": "LP I",
+            "carga_horaria": 80,
+            "ano_semestre": 1
+        },
+        {
+            "nome": "LÍNGUA PORTUGUESA II",
+            "codigo": "LP II",
+            "carga_horaria": 80,
+            "ano_semestre": 2
+        },
+        {
+            "nome": "LÍNGUA PORTUGUESA III",
+            "codigo": "LP III",
+            "carga_horaria": 120,
+            "ano_semestre": 3
+        },
+        {
+            "nome": "LÍNGUA INGLESA I",
+            "codigo": "LI I",
+            "carga_horaria": 40,
+            "ano_semestre": 2
+        },
+        {
+            "nome": "LÍNGUA INGLESA II",
+            "codigo": "LI II",
+            "carga_horaria": 40,
+            "ano_semestre": 3
+        },
+        {
+            "nome": "MATEMÁTICA I",
+            "codigo": "MAT I",
+            "carga_horaria": 120,
+            "ano_semestre": 1
+        },
+        {
+            "nome": "MATEMÁTICA II",
+            "codigo": "MAT II",
+            "carga_horaria": 80,
+            "ano_semestre": 2
+        },
+        {
+            "nome": "MATEMÁTICA III",
+            "codigo": "MAT III",
+            "carga_horaria": 80,
+            "ano_semestre": 3
+        },
+        {
+            "nome": "FÍSICA I",
+            "codigo": "FIS I",
+            "carga_horaria": 40,
+            "ano_semestre": 1
+        },
+        {
+            "nome": "FÍSICA II",
+            "codigo": "FIS I",
+            "carga_horaria": 80,
+            "ano_semestre": 2
+        },
+        {
+            "nome": "FÍSICA III",
+            "codigo": "FIS III",
+            "carga_horaria": 40,
+            "ano_semestre": 3
+        },
+        {
+            "nome": "BIOLOGIA I",
+            "codigo": "BIO I",
+            "carga_horaria": 40,
+            "ano_semestre": 1
+        },
+        {
+            "nome": "BIOLOGIA II",
+            "codigo": "BIO II",
+            "carga_horaria": 40,
+            "ano_semestre": 2
+        },
+        {
+            "nome": "BIOLOGIA III",
+            "codigo": "BIO III",
+            "carga_horaria": 80,
+            "ano_semestre": 3
+        },
+        {
+            "nome": "QUÍMICA I",
+            "codigo": "QUI I",
+            "carga_horaria": 40,
+            "ano_semestre": 1
+        },
+        {
+            "nome": "QUÍMICA II",
+            "codigo": "QUI II",
+            "carga_horaria": 80,
+            "ano_semestre": 2
+        },
+        {
+            "nome": "QUÍMICA III",
+            "codigo": "QUI III",
+            "carga_horaria": 40,
+            "ano_semestre": 3
+        },
+        {
+            "nome": "FILOSOFIA I",
+            "codigo": "FIL I",
+            "carga_horaria": 40,
+            "ano_semestre": 1
+        },
+        {
+            "nome": "FILOSOFIA II",
+            "codigo": "FIL II",
+            "carga_horaria": 40,
+            "ano_semestre": 2
+        },
+        {
+            "nome": "FILOSOFIA III",
+            "codigo": "FIL III",
+            "carga_horaria": 40,
+            "ano_semestre": 3
+        },
+        {
+            "nome": "HISTÓRIA I",
+            "codigo": "HIS I",
+            "carga_horaria": 40,
+            "ano_semestre": 1
+        },
+        {
+            "nome": "HISTÓRIA II",
+            "codigo": "HIS II",
+            "carga_horaria": 40,
+            "ano_semestre": 2
+        },
+        {
+            "nome": "HISTÓRIA III",
+            "codigo": "HIS III",
+            "carga_horaria": 40,
+            "ano_semestre": 3
+        },
+        {
+            "nome": "GEOGRAFIA I",
+            "codigo": "GEO I",
+            "carga_horaria": 40,
+            "ano_semestre": 1
+        },
+        {
+            "nome": "GEOGRAFIA II",
+            "codigo": "GEO II",
+            "carga_horaria": 40,
+            "ano_semestre": 2
+        },
+        {
+            "nome": "GEOGRAFIA III",
+            "codigo": "GEO III",
+            "carga_horaria": 40,
+            "ano_semestre": 3
+        },
+        {
+            "nome": "SOCIOLOGIA I",
+            "codigo": "SOC I",
+            "carga_horaria": 40,
+            "ano_semestre": 1
+        },
+        {
+            "nome": "SOCIOLOGIA II",
+            "codigo": "SOC II",
+            "carga_horaria": 40,
+            "ano_semestre": 2
+        },
+        {
+            "nome": "SOCIOLOGIA III",
+            "codigo": "SOC III",
+            "carga_horaria": 40,
+            "ano_semestre": 3
+        },
+        {
+            "nome": "INTRODUÇÃO À AGROPECUÁRIA E PROJETO DE",
+            "codigo": "IA",
+            "carga_horaria": 40,
+            "ano_semestre": 1
+        },
+        {
+            "nome": "LÍNGUA ESPANHOLA",
+            "codigo": "LE",
+            "carga_horaria": 40,
+            "ano_semestre": 1
+        },
+        {
+            "nome": "EMPREENDEDORISMO",
+            "codigo": "EMP",
+            "carga_horaria": 40,
+            "ano_semestre": 2
+        },
+        {
+            "nome": "PROJETO INTEGRADOR",
+            "codigo": "PI",
+            "carga_horaria": 40,
+            "ano_semestre": 2
+        },
+        {
+            "nome": "FORRAGICULTURA, ALIMENTOS E ALIMENTAÇÃO",
+            "codigo": "FAA",
+            "carga_horaria": 80,
+            "ano_semestre": 1
+        },
+        {
+            "nome": "CIÊNCIAS DO SOLO",
+            "codigo": "CS",
+            "carga_horaria": 80,
+            "ano_semestre": 1
+        },
+        {
+            "nome": "APICULTURA E MELIPONICULTURA",
+            "codigo": "AM",
+            "carga_horaria": 80,
+            "ano_semestre": 1
+        },
+        {
+            "nome": "ADMINISTRAÇÃO RURAL",
+            "codigo": "AR",
+            "carga_horaria": 40,
+            "ano_semestre": 1
+        },
+        {
+            "nome": "CONTROLE DE QUALIDADE",
+            "codigo": "CQ",
+            "carga_horaria": 40,
+            "ano_semestre": 1
+        },
+        {
+            "nome": "MECANIZAÇÃO AGRÍCOLA",
+            "codigo": "MA",
+            "carga_horaria": 80,
+            "ano_semestre": 2
+        },
+        {
+            "nome": "OLERICULTURA",
+            "codigo": "OLE",
+            "carga_horaria": 80,
+            "ano_semestre": 2
+        },
+        {
+            "nome": "PRODUÇÃO DE RUMINANTES",
+            "codigo": "PR",
+            "carga_horaria": 80,
+            "ano_semestre": 2
+        },
+        {
+            "nome": "AGROINDÚSTRIA",
+            "codigo": "AI",
+            "carga_horaria": 80,
+            "ano_semestre": 2
+        },
+        {
+            "nome": "CULTURAS ANUAIS",
+            "codigo": "CA",
+            "carga_horaria": 80,
+            "ano_semestre": 2
+        },
+        {
+            "nome": "EXTENSÃO RURAL",
+            "codigo": "ID",
+            "carga_horaria": 80,
+            "ano_semestre": 2
+        },
+        {
+            "nome": "PRODUÇÃO DE NÃO RUMINANTES",
+            "codigo": "PNR",
+            "carga_horaria": 80,
+            "ano_semestre": 3
+        },
+        {
+            "nome": "FRUTICULTURA",
+            "codigo": "FRU",
+            "carga_horaria": 80,
+            "ano_semestre": 3
+        },
+        {
+            "nome": "AGROECOLOGIA",
+            "codigo": "AGR",
+            "carga_horaria": 40,
+            "ano_semestre": 3
+        },
+        {
+            "nome": "INFORMÁTICA BÁSICA",
+            "codigo": "AGR",
+            "carga_horaria": 40,
+            "ano_semestre": null
+        },
+        {
+            "nome": "OLIMPÍADA BRASILEIRA DE ASTRONOMIA",
+            "codigo": "OBA",
+            "carga_horaria": 40,
+            "ano_semestre": null
+        },
+        {
+            "nome": "OLÍMPIADA BRASILEIRA DE FÍSICA - NÍVEL I",
+            "codigo": "OBF-I",
+            "carga_horaria": 40,
+            "ano_semestre": null
+        },
+        {
+            "nome": "OLÍMPIADA BRASILEIRA DE FÍSICA - NÍVEL II",
+            "codigo": "OBF-II",
+            "carga_horaria": 40,
+            "ano_semestre": null
+        },
+        {
+            "nome": "OLÍMPIADA BRASILEIRA DE FÍSICA - NÍVEL III",
+            "codigo": "OBF-III",
+            "carga_horaria": 40,
+            "ano_semestre": null
+        },
+        {
+            "nome": "OLÍMPIADA BRASILEIRA DE FÍSICA -",
+            "codigo": "OBF-EXP",
+            "carga_horaria": 40,
+            "ano_semestre": null
+        },
+        {
+            "nome": "ATUALIDADES",
+            "codigo": "ATU",
+            "carga_horaria": 40,
+            "ano_semestre": null
+        },
+        {
+            "nome": "MATEMÁTICA BÁSICA I",
+            "codigo": "MATB-I",
+            "carga_horaria": 40,
+            "ano_semestre": null
+        },
+        {
+            "nome": "MATEMÁTICA BÁSICA II",
+            "codigo": "MATB-II",
+            "carga_horaria": 40,
+            "ano_semestre": null
+        },
+        {
+            "nome": "MATEMÁTICA PARA OLIMPÍADAS",
+            "codigo": "MATPO",
+            "carga_horaria": 40,
+            "ano_semestre": null
+        },
+        {
+            "nome": "OFICINA DE REDAÇÃO",
+            "codigo": "ORED",
+            "carga_horaria": 40,
+            "ano_semestre": null
+        },
+        {
+            "nome": "VOLEIBOL MISTO",
+            "codigo": "VOL",
+            "carga_horaria": 40,
+            "ano_semestre": null
+        },
+        {
+            "nome": "LIBRAS",
+            "codigo": "LIB",
+            "carga_horaria": 40,
+            "ano_semestre": null
+        },
+        {
+            "nome": "NUTRIÇÃO ANIMAL BÁSICA",
+            "codigo": "NAB",
+            "carga_horaria": 40,
+            "ano_semestre": null
+        },
+        {
+            "nome": "FORMULAÇÃO DE RAÇÕES",
+            "codigo": "FR",
+            "carga_horaria": 40,
+            "ano_semestre": null
+        },
+        {
+            "nome": "PRODUÇÃO DE GALINHA CAIPIRA",
+            "codigo": "PGC",
+            "carga_horaria": 40,
+            "ano_semestre": null
+        },
+        {
+            "nome": "COOPERATIVISMO E ASSOCIATIVISMO",
+            "codigo": "COOP",
+            "carga_horaria": 40,
+            "ano_semestre": null
+        },
+        {
+            "nome": "SISTEMAS DE PRODUÇÃO ANIMAL NO SEMIÁRIDO",
+            "codigo": "SPA",
+            "carga_horaria": 40,
+            "ano_semestre": null
+        },
+        {
+            "nome": "TOPICOS ESPECIAIS EM FISIOLOGIA ANIMAL",
+            "codigo": "TFA",
+            "carga_horaria": 40,
+            "ano_semestre": null
+        },
+        {
+            "nome": "PRODUÇÃO DE OVINOS E CAPRINOS NO",
+            "codigo": "POC",
+            "carga_horaria": 40,
+            "ano_semestre": null
+        },
+        {
+            "nome": "BIOCLIMATOLOGIA APLICADA ÀS",
+            "codigo": "BIO",
+            "carga_horaria": 40,
+            "ano_semestre": null
+        }
+    ]
+}

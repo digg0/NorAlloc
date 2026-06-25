@@ -1,0 +1,138 @@
+{
+    "nome_curso": "Técnico em Informática para Internet",
+    "nivel_curso": "Técnico",
+    "disciplinas": [
+        {
+            "nome": "LÓGICA DE PROGRAMAÇÃO",
+            "codigo": "TSII.101",
+            "carga_horaria": 80,
+            "ano_semestre": 1
+        },
+        {
+            "nome": "PRODUÇÃO DE TEXTO TÉCNICO",
+            "codigo": "TSII.102",
+            "carga_horaria": 40,
+            "ano_semestre": 1
+        },
+        {
+            "nome": "SISTEMAS OPERACIONAIS",
+            "codigo": "TSII.103",
+            "carga_horaria": 80,
+            "ano_semestre": 1
+        },
+        {
+            "nome": "WEB DESIGN",
+            "codigo": "TSII.104",
+            "carga_horaria": 80,
+            "ano_semestre": 1
+        },
+        {
+            "nome": "REDES DE COMPUTADORES",
+            "codigo": "TSII.105",
+            "carga_horaria": 40,
+            "ano_semestre": 1
+        },
+        {
+            "nome": "EMPREENDEDORISMO",
+            "codigo": "TSII.106",
+            "carga_horaria": 40,
+            "ano_semestre": 1
+        },
+        {
+            "nome": "PROJETO INTEGRADOR I",
+            "codigo": "TSII.107",
+            "carga_horaria": 40,
+            "ano_semestre": 1
+        },
+        {
+            "nome": "PROGRAMAÇÃO ORIENTADA A OBJETOS",
+            "codigo": "TSII.208",
+            "carga_horaria": 80,
+            "ano_semestre": 2
+        },
+        {
+            "nome": "BANCO DE DADOS",
+            "codigo": "TSII.209",
+            "carga_horaria": 80,
+            "ano_semestre": 2
+        },
+        {
+            "nome": "ENGENHARIA DE SOFTWARE",
+            "codigo": "TSII.210",
+            "carga_horaria": 80,
+            "ano_semestre": 2
+        },
+        {
+            "nome": "DESENVOLVIMENTO WEB I",
+            "codigo": "TSII.211",
+            "carga_horaria": 80,
+            "ano_semestre": 2
+        },
+        {
+            "nome": "SERVIDORES",
+            "codigo": "TSII.212",
+            "carga_horaria": 40,
+            "ano_semestre": 2
+        },
+        {
+            "nome": "PROJETO INTEGRADOR II",
+            "codigo": "TSII.213",
+            "carga_horaria": 40,
+            "ano_semestre": 2
+        },
+        {
+            "nome": "PROGRAMAÇÃO PARA DISPOSITIVOS MÓVEIS",
+            "codigo": "TSII.314",
+            "carga_horaria": 120,
+            "ano_semestre": 3
+        },
+        {
+            "nome": "ANÁLISE E PROJETO DE SISTEMAS",
+            "codigo": "TSII.315",
+            "carga_horaria": 40,
+            "ano_semestre": 3
+        },
+        {
+            "nome": "DESENVOLVIMENTO WEB II",
+            "codigo": "TSII.316",
+            "carga_horaria": 80,
+            "ano_semestre": 3
+        },
+        {
+            "nome": "SEGURANÇA DE REDES",
+            "codigo": "TSII.317",
+            "carga_horaria": 40,
+            "ano_semestre": 3
+        },
+        {
+            "nome": "GESTÃO DE PROJETOS",
+            "codigo": "TSII.318",
+            "carga_horaria": 40,
+            "ano_semestre": 3
+        },
+        {
+            "nome": "PROJETO INTEGRADOR III",
+            "codigo": "TSII.319",
+            "carga_horaria": 80,
+            "ano_semestre": 3
+        },
+        {
+            "nome": "ARTES",
+            "codigo": "TSII.401",
+            "carga_horaria": 40,
+            "ano_semestre": null
+        },
+        {
+            "nome": "EDUCAÇÃO FÍSICA",
+            "codigo": "TSII.402",
+            "carga_horaria": null,
+            "ano_semestre": null
+        },
+        {
+            "nome": "LIBRAS",
+            "codigo": "TSII.403",
+            "carga_horaria": null,
+            "ano_semestre": null
+        }
+    ]
+}

@@ -6,9 +6,9 @@ teste da integração de login. As senhas são gravadas já com hash bcrypt.
 """
 from app.core.database import SessionLocal
 from app.core.security import get_password_hash
+from app.core.curriculos import seed_curriculos
 from app.models.usuario import Usuario
 from app.models.professor import Professor
-from app.models.curso import Curso
 from app.models.coordenador import Coordenador
 
 # (nome, email, senha, tipo)
@@ -18,17 +18,8 @@ USUARIOS_DEMO = [
     ("Ana Silva", "ana.silva@ifce.edu.br", "prof123", "PROFESSOR"),
 ]
 
-# Cursos básicos. Disciplinas e turmas referenciam cursos por FK, então a
-# tabela precisa estar populada para que os cadastros funcionem de ponta a
-# ponta. (nome, nivel)
-CURSOS_DEMO = [
-    ("Análise e Desenvolvimento de Sistemas", "Superior"),
-    ("Letras", "Superior"),
-    ("Agropecuária", "Médio"),
-    ("Redes de Computadores", "Superior"),
-    ("Informática para Internet", "Médio"),
-    ("Telemática", "Superior"),
-]
+# Os cursos e disciplinas agora vêm das grades curriculares versionadas em
+# app/data/grades_curriculares/*.json (ver seed_curriculos).
 
 # Cadastro de docente para o usuário demo do tipo PROFESSOR, para que o
 # dashboard dele já tenha dados reais (regime, carga máxima, etc.).
@@ -46,11 +37,9 @@ def seed_usuarios_demo() -> None:
     try:
         criados = 0
 
-        # Cursos básicos (necessários para os cadastros de disciplinas/turmas).
-        for nome, nivel in CURSOS_DEMO:
-            if not db.query(Curso).filter(Curso.nome == nome).first():
-                db.add(Curso(nome=nome, nivel=nivel))
-                criados += 1
+        # Cursos + disciplinas a partir dos currículos versionados (JSON).
+        # Necessário para os cadastros de disciplinas/turmas (FK em cursos).
+        criados += seed_curriculos(db)
 
         for nome, email, senha, tipo in USUARIOS_DEMO:
             existe = db.query(Usuario).filter(Usuario.email == email).first()

@@ -29,9 +29,22 @@ class Disciplina(Base):
         nullable=False
     )
 
+    # Código da disciplina na matriz curricular (ex.: "ADS01"). Pode faltar em
+    # alguns currículos, então é opcional.
+    codigo = Column(
+        String,
+        nullable=True
+    )
+
     carga_horaria = Column(
         Integer,
-        nullable=False
+        nullable=True
+    )
+
+    # Período/semestre da matriz (ano_semestre no currículo). Optativas ficam nulas.
+    ano_semestre = Column(
+        Integer,
+        nullable=True
     )
 
     curso = relationship(
