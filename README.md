@@ -1,397 +1,203 @@
-# 📅 Sistema de Gestão de Horários
+# NorAlloc — Sistema de Alocação de Horários Acadêmicos
 
-Bem-vindos ao repositório oficial do **Sistema de Gestão de Horários**.
-
-Este projeto utiliza uma arquitetura **Monorepo**, garantindo que Frontend, Backend e Banco de Dados convivam no mesmo repositório com versionamento unificado, mas operando em ambientes isolados via Docker.
+Sistema web para gestão e alocação de horários do IFCE. Permite que coordenadores configurem semestres, vinculem turmas, disciplinas e professores, e (futuramente) gerem a grade automaticamente via solver.
 
 ---
 
-# 🏗️ Estrutura do Projeto (Quem mexe onde?)
+## O que o sistema faz
 
-Nossa arquitetura está organizada nas seguintes pastas:
+| Papel | Funcionalidades |
+|-------|----------------|
+| **Admin** | Cadastra coordenadores, professores, cursos. Visualiza dashboard geral. |
+| **Coordenador** | Cria semestres, turmas e ofertas (disciplina + professor). Configura restrições de horário. Gera relatórios. |
+| **Professor** | Visualiza sua agenda, marca horários indisponíveis, registra situação (ativo/afastado/carga reduzida). |
 
-```bash
-.github/
-└── workflows/              # Pipelines e automações do GitHub Actions
+### Fluxo principal (Wizard do Coordenador)
 
-backend-python/             # Backend principal da aplicação (Python)
+1. **Criar semestre** — nome, datas de início e fim
+2. **Configurar ofertas** — adicionar turmas ao semestre, vincular disciplinas e professores a cada turma
+3. **Alocar professores e restrições** — atribuir professor a cada oferta, marcar horários bloqueados
+4. **Simulação** — executar o solver para gerar a grade (em desenvolvimento)
 
-database/                   # Scripts SQL e estrutura do PostgreSQL
+### Dados pré-carregados
 
-frontend-react/             # Frontend da aplicação desenvolvido em React
+Ao subir o sistema pela primeira vez, o seed já cria automaticamente:
 
-.env                        # Variáveis de ambiente locais
-.env.example                # Exemplo de configuração das variáveis
+- **3 usuários** de teste (admin, coordenador, professor)
+- **4 cursos** com **206 disciplinas** importadas das grades curriculares reais do IFCE
+- **14 slots de horário** padrão (manhã, tarde, noite)
 
-.gitignore                  # Arquivos ignorados pelo Git
+---
 
-docker-compose.yml          # Orquestração dos containers Docker
+## Tecnologias
 
-README.md                   # Documentação principal do projeto
+| Camada | Stack |
+|--------|-------|
+| Frontend | React 18, TypeScript, Vite, Tailwind CSS, Shadcn/UI |
+| Backend | Python 3.11, FastAPI, SQLAlchemy, Alembic, JWT (HS256) |
+| Banco de dados | PostgreSQL 15 |
+| Infra | Docker, Docker Compose, GitHub Actions |
+
+---
+
+## Estrutura do projeto
+
+```
+NorAlloc/
+├── backend-python/          # API FastAPI
+│   ├── app/
+│   │   ├── api/routers/     # Endpoints REST
+│   │   ├── core/            # Database, auth, seed, curriculos
+│   │   ├── models/          # SQLAlchemy models
+│   │   ├── schemas/         # Pydantic schemas
+│   │   └── data/            # Grades curriculares (JSON)
+│   ├── alembic/             # Migrations
+│   ├── Dockerfile
+│   └── requirements.txt
+├── frontend-react/          # SPA React
+│   ├── src/app/
+│   │   ├── App.tsx          # Aplicação principal
+│   │   └── services/        # Camada de API (fetch + tipos)
+│   ├── Dockerfile
+│   └── package.json
+├── database/                # Scripts SQL (estrutura inicial)
+├── docker-compose.yml
+├── .env.example             # Variáveis de ambiente (copiar para .env)
+└── README.md
 ```
 
 ---
 
-# 🚀 Como rodar o projeto na sua máquina (Dia 1)
+## Como rodar
 
-Graças à nossa infraestrutura conteinerizada, **você não precisa instalar Python, Node ou PostgreSQL no seu computador**.
+### Pré-requisitos
 
-O Docker fará todo o trabalho pesado.
+- [Git](https://git-scm.com/)
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/)
 
----
-
-# ✅ Pré-requisitos
-
-Antes de começar, você precisa ter instalado na sua máquina:
-
-## 1️⃣ Git
-
-Download oficial:
-
-```txt
-https://git-scm.com/
-```
-
-Verifique se está instalado:
+Verifique se estão instalados:
 
 ```bash
 git --version
-```
-
----
-
-## 2️⃣ Docker Desktop
-
-Download oficial:
-
-```txt
-https://www.docker.com/products/docker-desktop/
-```
-
-Verifique se está rodando:
-
-```bash
 docker --version
 docker compose version
 ```
 
----
-
-# 📥 Clonando o Projeto
-
-## 1️⃣ Clone o repositório
+### 1. Clone o repositório
 
 ```bash
-git clone <COLOQUE-O-LINK-DO-SEU-GITHUB-AQUI>
-```
-
----
-
-## 2️⃣ Entre na pasta do projeto
-
-```bash
-cd gestao-horarios
-```
-
----
-
-## 3️⃣ Vá para a branch de desenvolvimento
-
-```bash
+git clone https://github.com/digg0/NorAlloc.git
+cd NorAlloc
 git checkout develop
 ```
 
----
-
-# ⚙️ Configuração do Ambiente
-
-## Copie o arquivo `.env.example`
-
-Crie seu arquivo `.env` local:
-
-### Linux / Mac
+### 2. Configure o ambiente
 
 ```bash
+# Linux / Mac
 cp .env.example .env
-```
 
-### Windows (PowerShell)
-
-```powershell
+# Windows (PowerShell)
 copy .env.example .env
 ```
 
----
+Os valores padrão do `.env.example` já funcionam com o Docker Compose.
 
-# 🐳 Docker — Primeira Execução
+### 3. Suba os containers
 
-## 🔥 IMPORTANTE
-
-Na primeira vez que rodar o projeto, utilize:
+**Primeira vez** (constrói as imagens):
 
 ```bash
 docker compose up --build
 ```
 
-Esse comando irá:
-
-- Construir todas as imagens Docker
-- Instalar dependências automaticamente
-- Criar os containers
-- Configurar a rede interna
-- Inicializar banco de dados
-- Subir backend e frontend
-
-⚠️ Esse processo pode demorar alguns minutos na primeira execução.
-
----
-
-# ⚡ Execuções Futuras
-
-Depois que as imagens já estiverem criadas, utilize:
+**Vezes seguintes** (em segundo plano):
 
 ```bash
 docker compose up -d
 ```
 
-O parâmetro `-d` executa os containers em segundo plano.
+Aguarde os logs indicarem que backend e frontend estão prontos (~1-2 minutos na primeira vez).
+
+### 4. Acesse o sistema
+
+| Serviço | URL |
+|---------|-----|
+| Frontend | http://localhost:3000 |
+| Backend (API docs) | http://localhost:8000/docs |
+| PostgreSQL | localhost:5432 |
 
 ---
 
-# 🎯 Rodando Apenas Um Serviço
+## Credenciais de teste
 
-Você também pode subir apenas um container específico.
+O sistema cria 3 contas automaticamente no primeiro boot:
+
+| Papel | E-mail | Senha |
+|-------|--------|-------|
+| Admin | `admin@ifce.edu.br` | `admin` |
+| Coordenador | `saulo.anderson@ifce.edu.br` | `123456` |
+| Professor | `ana.silva@ifce.edu.br` | `prof123` |
 
 ---
 
-## 🖥️ Subir apenas o Frontend
+## Comandos úteis
 
 ```bash
-docker compose up -d frontend
-```
+# Subir tudo em segundo plano
+docker compose up -d
 
----
+# Ver logs em tempo real
+docker compose logs -f
 
-## ⚙️ Subir apenas o Backend
+# Logs só do backend
+docker compose logs -f backend
 
-```bash
+# Logs só do frontend
+docker compose logs -f frontend
+
+# Parar tudo
+docker compose down
+
+# Reconstruir do zero (limpa o banco)
+docker compose down -v && docker compose up --build
+
+# Subir apenas um serviço
 docker compose up -d backend
-```
-
----
-
-## 🗄️ Subir apenas o Banco de Dados
-
-```bash
+docker compose up -d frontend
 docker compose up -d database
 ```
 
 ---
 
-# 🛑 Parando os Containers
+## Fluxo de trabalho (GitFlow)
 
-Para parar todos os containers:
-
-```bash
-docker compose down
-```
-
----
-
-# 🔄 Reiniciando os Containers
+- **Nunca** faça commit diretamente em `main` ou `develop`
+- Crie uma branch a partir de `develop`:
 
 ```bash
-docker compose restart
-```
-
----
-
-# 📜 Visualizando Logs
-
-## Logs de todos os serviços
-
-```bash
-docker compose logs -f
-```
-
----
-
-## Logs apenas do backend
-
-```bash
-docker compose logs -f backend
-```
-
----
-
-## Logs apenas do frontend
-
-```bash
-docker compose logs -f frontend
-```
-
----
-
-# 🌐 Endereços da Aplicação
-
-Após subir os containers:
-
-| Serviço | URL |
-|---|---|
-| Frontend | http://localhost:3000 |
-| Backend | http://localhost:8000 |
-| PostgreSQL | localhost:5432 |
-
----
-
-# 🛠️ Fluxo de Trabalho (GitFlow)
-
-Para mantermos o projeto organizado e a esteira de CI/CD funcionando corretamente, siga estas regras.
-
----
-
-# ❌ Nunca faça commit diretamente em:
-
-- `main`
-- `develop`
-
----
-
-# 🌱 Sempre crie uma branch nova
-
-Exemplo:
-
-```bash
+git checkout develop
 git checkout -b feature/nome-da-feature
 ```
 
----
+### Padrão de commits
 
-# ✍️ Padrão de Commits (Conventional Commits)
-
-Utilize os padrões abaixo:
-
----
-
-## ✨ Nova funcionalidade
-
-```bash
+```
 feat: cria tela de login
-```
-
----
-
-## 🐛 Correção de bug
-
-```bash
 fix: corrige erro de autenticação
-```
-
----
-
-## 🧹 Organização / manutenção
-
-```bash
-chore: atualiza dependências
-```
-
----
-
-## ♻️ Refatoração
-
-```bash
 refactor: melhora estrutura da autenticação
-```
-
----
-
-## 📚 Documentação
-
-```bash
+chore: atualiza dependências
 docs: atualiza README
 ```
 
----
+### Pull Request
 
-# 🔄 Pull Requests
-
-Quando finalizar sua tarefa:
-
-1. Faça commit das alterações
-2. Faça push da sua branch
-3. Abra um Pull Request
-4. Direcione o PR para `develop`
+1. Faça commit e push da sua branch
+2. Abra um PR direcionado para `develop`
+3. Aguarde o CI passar e a revisão ser aprovada
 
 ---
 
-# 🤖 CI/CD Automático
+## Equipe
 
-Nossos workflows do GitHub Actions executam automaticamente:
-
-- Testes
-- Build da aplicação
-- Verificações de qualidade
-- Lint
-- Validação de PR
-
-Se tudo estiver verde ✅, o PR poderá ser aprovado.
-
----
-
-# 📌 Observações Importantes
-
-- Os containers compartilham os arquivos locais via volumes Docker.
-- Toda alteração feita no código é refletida automaticamente no container.
-- O banco PostgreSQL utiliza persistência via volume Docker.
-- Não é necessário instalar dependências localmente.
-- Toda a stack roda isolada via containers.
-
----
-
-# 🧹 Comandos Úteis
-
-## Rebuildar os containers
-
-```bash
-docker compose up --build
-```
-
-
----
-
-# 📂 Tecnologias Utilizadas
-
-## Frontend
-
-- React
-- Vite
-- JavaScript
-
----
-
-## Backend
-
-- Python
-- FastAPI
-
----
-
-## Banco de Dados
-
-- PostgreSQL
-
----
-
-## DevOps
-
-- Docker
-- Docker Compose
-- GitHub Actions
-
----
-
-# 👨‍💻 Equipe
-
-Projeto mantido pela equipe de Infraestrutura e Desenvolvimento da Nordev.
-
----
+Projeto desenvolvido pela equipe NorDev — IFCE.
