@@ -74,6 +74,11 @@ export async function listarAlocacoesPorSemestre(semestreId: number): Promise<Al
   return dados.map(paraUI);
 }
 
+export async function listarAlocacoesPorProfessor(professorId: number): Promise<AlocacaoUI[]> {
+  const dados = await apiFetch<AlocacaoBackend[]>(`/alocacoes/professor/${professorId}`);
+  return dados.map(paraUI);
+}
+
 export async function moverAlocacao(alocacaoId: number, novoHorarioId: number): Promise<AlocacaoUI> {
   const atualizado = await apiFetch<AlocacaoBackend>(`/alocacoes/${alocacaoId}/mover`, {
     method: 'PATCH',

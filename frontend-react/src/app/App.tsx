@@ -26,6 +26,10 @@ import { AlertasView } from './components/AlertasView';
 import { RelatoriosView } from './components/RelatoriosView';
 import { listarSemestres, criarSemestre, type SemestreUI, type SemestreFormData } from './services/semestres';
 import { obterDisponibilidade, salvarDisponibilidade } from './services/disponibilidadeProfessor';
+import { listarAlocacoesPorProfessor } from './services/alocacoes';
+import { listarHorarios as listarHorariosReais } from './services/horarios';
+import { listarDisciplinasBackend } from './services/disciplinasBackend';
+import { listarTurmasBackend } from './services/turmasBackend';
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -784,18 +788,70 @@ function AppShell({ currentUser, onLogout }: { currentUser: SessaoUsuario; onLog
     relatorios:                'Relatórios',
   };
 
-  // ── Professor mock agenda data ────────────────────────────────────────────
+  const profLogado = professores.find(p => p.email === currentUser.email);
+
+  // ── Agenda real do professor (calculada a partir das alocações) ───────────
   type AgendaSlot = { day: string; slot: string; disciplina: string; turma: string; colorClass: string };
-  const profAgenda: AgendaSlot[] = [
-    { day: 'SEG', slot: 'M1', disciplina: 'AED', turma: 'ADS 2024.1 (Manhã)', colorClass: 'bg-blue-100 border-blue-300 text-blue-800' },
-    { day: 'SEG', slot: 'M2', disciplina: 'AED', turma: 'ADS 2024.1 (Manhã)', colorClass: 'bg-blue-100 border-blue-300 text-blue-800' },
-    { day: 'TER', slot: 'M1', disciplina: 'AED', turma: 'ADS 2024.1 (Manhã)', colorClass: 'bg-blue-100 border-blue-300 text-blue-800' },
-    { day: 'QUA', slot: 'T1', disciplina: 'ES', turma: 'ADS 2024.1 (Tarde)', colorClass: 'bg-emerald-100 border-emerald-300 text-emerald-800' },
-    { day: 'QUA', slot: 'T2', disciplina: 'ES', turma: 'ADS 2024.1 (Tarde)', colorClass: 'bg-emerald-100 border-emerald-300 text-emerald-800' },
-    { day: 'SEX', slot: 'N1', disciplina: 'AED', turma: 'ADS 2024.1 (Noite)', colorClass: 'bg-blue-100 border-blue-300 text-blue-800' },
+  const DIA_CURTO: Record<string, string> = { SEGUNDA: 'SEG', TERCA: 'TER', QUARTA: 'QUA', QUINTA: 'QUI', SEXTA: 'SEX', SABADO: 'SAB' };
+  const TURNO_LETRA: Record<string, string> = { MANHA: 'M', TARDE: 'T', NOITE: 'N' };
+  const PALETA_AGENDA = [
+    'bg-blue-100 border-blue-300 text-blue-800',
+    'bg-emerald-100 border-emerald-300 text-emerald-800',
+    'bg-amber-100 border-amber-300 text-amber-800',
+    'bg-purple-100 border-purple-300 text-purple-800',
+    'bg-rose-100 border-rose-300 text-rose-800',
   ];
 
-  const profLogado = professores.find(p => p.email === currentUser.email);
+  const [profAgenda, setProfAgenda] = useState<AgendaSlot[]>([]);
+
+  useEffect(() => {
+    if (!profLogado) return;
+    Promise.all([
+      listarAlocacoesPorProfessor(profLogado.id),
+      listarHorariosReais(),
+      listarDisciplinasBackend(),
+      listarTurmasBackend(),
+    ])
+      .then(([alocacoes, horarios, disciplinas, turmas]) => {
+        // Mapeia cada Horario para o código DIA_SLOT (ex.: "SEG_M1"),
+        // posição cronológica dentro do mesmo dia+turno — mesma lógica do
+        // backend (solver_service._slot_codes_por_horario).
+        const porDiaTurno = new Map<string, typeof horarios>();
+        for (const h of horarios) {
+          const chave = `${h.diaSemana}_${h.turno}`;
+          const lista = porDiaTurno.get(chave) ?? [];
+          lista.push(h);
+          porDiaTurno.set(chave, lista);
+        }
+        const slotCodeByHorarioId = new Map<number, string>();
+        for (const lista of porDiaTurno.values()) {
+          lista.sort((a, b) => a.horaInicio.localeCompare(b.horaInicio));
+          lista.forEach((h, indice) => {
+            slotCodeByHorarioId.set(h.id, `${TURNO_LETRA[h.turno] ?? '?'}${indice + 1}`);
+          });
+        }
+
+        const agenda: AgendaSlot[] = [];
+        alocacoes.forEach((a, indice) => {
+          if (!a.horario || !a.oferta) return;
+          const dia = DIA_CURTO[a.horario.dia_semana];
+          const slot = slotCodeByHorarioId.get(a.horario.id);
+          if (!dia || !slot) return;
+          const disciplina = disciplinas.find((d) => d.id === a.oferta!.disciplina_id);
+          const turma = turmas.find((t) => t.id === a.oferta!.turma_id);
+          agenda.push({
+            day: dia,
+            slot,
+            disciplina: disciplina?.nome ?? `Disciplina #${a.oferta!.disciplina_id}`,
+            turma: turma?.nome ?? `Turma #${a.oferta!.turma_id}`,
+            colorClass: PALETA_AGENDA[(a.oferta!.disciplina_id + indice) % PALETA_AGENDA.length],
+          });
+        });
+        setProfAgenda(agenda);
+      })
+      .catch(() => {});
+  }, [profLogado?.id]);
+
   const maxHoras = profLogado ? REGIME_MAX_HOURS[profLogado.regimeTrabalho] : 20;
   const horasAlocadas = profAgenda.length;
 
@@ -1518,9 +1574,9 @@ function AppShell({ currentUser, onLogout }: { currentUser: SessaoUsuario; onLog
                                   return (
                                     <td key={day} className="p-1 text-center">
                                       {aula ? (
-                                        <div className={cn('rounded border px-1 py-1 text-center leading-tight', aula.colorClass)}>
-                                          <p className="font-bold">{aula.disciplina}</p>
-                                          <p className="text-[9px] opacity-70">{aula.turma.split(' ')[0]}</p>
+                                        <div className={cn('rounded border px-1 py-1 text-center leading-tight overflow-hidden', aula.colorClass)} title={`${aula.disciplina} — ${aula.turma}`}>
+                                          <p className="font-bold text-[10px] truncate">{aula.disciplina}</p>
+                                          <p className="text-[9px] opacity-70 truncate">{aula.turma}</p>
                                         </div>
                                       ) : (
                                         <div className="w-full h-7 rounded bg-muted/30 border border-muted/50" />
@@ -1651,8 +1707,8 @@ function AppShell({ currentUser, onLogout }: { currentUser: SessaoUsuario; onLog
                                   return (
                                     <td key={day} className="p-1 text-center">
                                       {alocada ? (
-                                        <div className="w-full min-h-[36px] rounded border bg-blue-100 border-blue-300 text-blue-800 flex flex-col items-center justify-center px-1 py-1 cursor-not-allowed">
-                                          <span className="font-bold text-[10px]">{alocada.disciplina}</span>
+                                        <div className="w-full min-h-[36px] rounded border bg-blue-100 border-blue-300 text-blue-800 flex flex-col items-center justify-center px-1 py-1 cursor-not-allowed overflow-hidden" title={`${alocada.disciplina} — já alocada, não editável aqui`}>
+                                          <span className="font-bold text-[10px] truncate max-w-full">{alocada.disciplina}</span>
                                           <span className="text-[9px] opacity-70">Alocada</span>
                                         </div>
                                       ) : (
