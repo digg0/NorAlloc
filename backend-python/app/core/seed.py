@@ -8,7 +8,6 @@ from datetime import time as dt_time
 
 from app.core.database import SessionLocal
 from app.core.security import get_password_hash
-from app.core.curriculos import seed_curriculos
 from app.models.usuario import Usuario
 from app.models.professor import Professor
 from app.models.coordenador import Coordenador
@@ -40,9 +39,12 @@ def seed_usuarios_demo() -> None:
     try:
         criados = 0
 
-        # Cursos + disciplinas a partir dos currículos versionados (JSON).
-        # Necessário para os cadastros de disciplinas/turmas (FK em cursos).
-        criados += seed_curriculos(db)
+        # Cursos/disciplinas reais agora vêm de seed_cursos_reais.py +
+        # seed_disciplinas_reais.py (rodados manualmente uma vez por banco).
+        # NÃO chamar seed_curriculos() aqui: ele casa curso por nome exato e
+        # os JSONs em app/data/grades_curriculares usam nomes diferentes dos
+        # importados por esses scripts (ex.: "ADS" vs "Análise e
+        # Desenvolvimento de Sistemas"), duplicando o curso a cada boot.
 
         for nome, email, senha, tipo in USUARIOS_DEMO:
             existe = db.query(Usuario).filter(Usuario.email == email).first()
