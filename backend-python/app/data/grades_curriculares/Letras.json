@@ -1,0 +1,406 @@
+{
+    "nome_curso": "Licenciatura em Letras",
+    "nivel_curso": "Superior",
+    "disciplinas": [
+        {
+            "nome": "PORTUGUÊS INSTRUMENTAL",
+            "carga_horaria": 60,
+            "ano_semestre": 1
+        },
+        {
+            "nome": "REDAÇÃO CIENTÍFICA",
+            "carga_horaria": 60,
+            "ano_semestre": 1
+        },
+        {
+            "nome": "LINGUÍSTICA PRESSUPOSTOS TEÓRICOS",
+            "carga_horaria": 60,
+            "ano_semestre": 1
+        },
+        {
+            "nome": "INGLÊS INSTRUMENTAL",
+            "carga_horaria": 60,
+            "ano_semestre": 1
+        },
+        {
+            "nome": "LÍNGUA INGLESA I",
+            "carga_horaria": 60,
+            "ano_semestre": 1
+        },
+        {
+            "nome": "CULTURA BRASILEIRA: POLÍTICA E SOCIEDADE",
+            "carga_horaria": 60,
+            "ano_semestre": 1
+        },
+        {
+            "nome": "FUNDAMENTOS SÓCIO-HISTÓRICOS DA EDUCAÇÃO",
+            "carga_horaria": 60,
+            "ano_semestre": 1
+        },
+        {
+            "nome": "LÍNGUA E CULTURA LATINA I",
+            "carga_horaria": 60,
+            "ano_semestre": 2
+        },
+        {
+            "nome": "LÍNGUA PORTUGUESA I (MORFOLOGIA)",
+            "carga_horaria": 60,
+            "ano_semestre": 2
+        },
+        {
+            "nome": "LINGUÍSTICA II (FONÉTICA E FONOLOGIA)",
+            "carga_horaria": 60,
+            "ano_semestre": 2
+        },
+        {
+            "nome": "LÍNGUA INGLESA II",
+            "carga_horaria": 60,
+            "ano_semestre": 2
+        },
+        {
+            "nome": "TEORIA DA LITERATURA I",
+            "carga_horaria": 60,
+            "ano_semestre": 2
+        },
+        {
+            "nome": "SEMINÁRIO I: INTRODUÇÃO AOS FUNDAMENTOS DA DOCÊNCIA EM LÍNGUA MATERNA (E ESTRANGEIRA)",
+            "carga_horaria": 60,
+            "ano_semestre": 2
+        },
+        {
+            "nome": "LABORATÓRIO DE LEITURA E PRODUÇÃO TEXTUAL I",
+            "carga_horaria": 60,
+            "ano_semestre": 2
+        },
+        {
+            "nome": "LÍNGUA E CULTURA LATINA II",
+            "carga_horaria": 60,
+            "ano_semestre": 3
+        },
+        {
+            "nome": "LÍNGUA PORTUGUESA II (SINTAXE)",
+            "carga_horaria": 60,
+            "ano_semestre": 3
+        },
+        {
+            "nome": "LINGUÍSTICA III (SEMÂNTICA E PRAGMÁTICA)",
+            "carga_horaria": 60,
+            "ano_semestre": 3
+        },
+        {
+            "nome": "LÍNGUA INGLESA III",
+            "carga_horaria": 60,
+            "ano_semestre": 3
+        },
+        {
+            "nome": "TEORIA DA LITERATURA II",
+            "carga_horaria": 60,
+            "ano_semestre": 3
+        },
+        {
+            "nome": "LABORATÓRIO DE LEITURA E PRODUÇÃO TEXTUAL II",
+            "carga_horaria": 60,
+            "ano_semestre": 3
+        },
+        {
+            "nome": "PSICOLOGIA DA EDUCAÇÃO",
+            "carga_horaria": 60,
+            "ano_semestre": 3
+        },
+        {
+            "nome": "LÍNGUA PORTUGUESA III (MORFOSSINTAXE)",
+            "carga_horaria": 60,
+            "ano_semestre": 4
+        },
+        {
+            "nome": "OFICINA DE TEORIA / REDAÇÃO LITERÁRIA",
+            "carga_horaria": 40,
+            "ano_semestre": 4
+        },
+        {
+            "nome": "LINGUÍSTICA IV (PSICOLINGUÍSTICA)",
+            "carga_horaria": 60,
+            "ano_semestre": 4
+        },
+        {
+            "nome": "LITERATURA BRASILEIRA I",
+            "carga_horaria": 60,
+            "ano_semestre": 4
+        },
+        {
+            "nome": "LÍNGUA INGLESA IV",
+            "carga_horaria": 60,
+            "ano_semestre": 4
+        },
+        {
+            "nome": "FONÉTICA DA LÍNGUA INGLESA",
+            "carga_horaria": 60,
+            "ano_semestre": 4
+        },
+        {
+            "nome": "DIDÁTICA GERAL",
+            "carga_horaria": 90,
+            "ano_semestre": 4
+        },
+        {
+            "nome": "LINGUÍSTICA V (SOCIOLINGUÍSTICA)",
+            "carga_horaria": 60,
+            "ano_semestre": 5
+        },
+        {
+            "nome": "LÍNGUA INGLESA V (SINTAXE)",
+            "carga_horaria": 60,
+            "ano_semestre": 5
+        },
+        {
+            "nome": "LITERATURA BRASILEIRA II",
+            "carga_horaria": 60,
+            "ano_semestre": 5
+        },
+        {
+            "nome": "LITERATURA PORTUGUESA I",
+            "carga_horaria": 60,
+            "ano_semestre": 5
+        },
+        {
+            "nome": "LITERATURA INGLESA I",
+            "carga_horaria": 60,
+            "ano_semestre": 5
+        },
+        {
+            "nome": "METODOLOGIA DA PESQUISA EM LETRAS",
+            "carga_horaria": 40,
+            "ano_semestre": 5
+        },
+        {
+            "nome": "ESTÁGIO: FUNDAMENTOS (L. PORT./ L. INGL)",
+            "carga_horaria": 80,
+            "ano_semestre": 5
+        },
+        {
+            "nome": "LITERATURA BRASILEIRA III",
+            "carga_horaria": 60,
+            "ano_semestre": 6
+        },
+        {
+            "nome": "LITERATURA NORTE-AMERICANA I",
+            "carga_horaria": 60,
+            "ano_semestre": 6
+        },
+        {
+            "nome": "LÍNGUA INGLESA VI (SEMÂNTICA)",
+            "carga_horaria": 60,
+            "ano_semestre": 6
+        },
+        {
+            "nome": "METODOLOGIA DO ENS. DE LÍNG. PORTUGUESA",
+            "carga_horaria": 40,
+            "ano_semestre": 6
+        },
+        {
+            "nome": "METODOLOGIA DO ENS. DE LÍNGUA INGLESA",
+            "carga_horaria": 60,
+            "ano_semestre": 6
+        },
+        {
+            "nome": "POLÍTICAS EDUCACIONAIS",
+            "carga_horaria": 60,
+            "ano_semestre": 6
+        },
+        {
+            "nome": "ESTÁGIO SUPERVISIONADO I: OBSERVAÇÃO DA PRÁTICA DOCENTE (L. PORT./ L. INGL)",
+            "carga_horaria": 90,
+            "ano_semestre": 6
+        },
+        {
+            "nome": "ESTÁGIO SUPERVISIONADO II – LÍNGUA PORTUGUESA",
+            "carga_horaria": 120,
+            "ano_semestre": 7
+        },
+        {
+            "nome": "ESTÁGIO SUPERVISIONADO II – LÍNGUA INGLESA",
+            "carga_horaria": 120,
+            "ano_semestre": 7
+        },
+        {
+            "nome": "TÓPICOS DE GRAMÁTICA NORMATIVA",
+            "carga_horaria": 60,
+            "ano_semestre": 7
+        },
+        {
+            "nome": "LITERATURA NORTE-AMERICANA II",
+            "carga_horaria": 60,
+            "ano_semestre": 7
+        },
+        {
+            "nome": "LITERATURA INGLESA II",
+            "carga_horaria": 60,
+            "ano_semestre": 7
+        },
+        {
+            "nome": "ESTÁGIO SUPERVISIONADO III – LÍNGUA PORTUGUESA",
+            "carga_horaria": 120,
+            "ano_semestre": 8
+        },
+        {
+            "nome": "ESTÁGIO SUPERVISIONADO III – LÍNGUA INGLESA",
+            "carga_horaria": 120,
+            "ano_semestre": 8
+        },
+        {
+            "nome": "LÍNGUA BRASILEIRA DE SINAIS: FUNDAMENTOS",
+            "carga_horaria": 60,
+            "ano_semestre": 8
+        },
+        {
+            "nome": "OPTATIVA I",
+            "carga_horaria": 60,
+            "ano_semestre": 8
+        },
+        {
+            "nome": "OPTATIVA II",
+            "carga_horaria": 60,
+            "ano_semestre": 8
+        },
+        {
+            "nome": "FUNDAMENTOS DE PSICOLINGUÍSTICA APLICADOS AO ENS. DE LING. ESTRANGEIRA",
+            "carga_horaria": 60,
+            "ano_semestre": 9
+        },
+        {
+            "nome": "PRODUÇÃO ORAL EM LÍNGUA INGLESA",
+            "carga_horaria": 60,
+            "ano_semestre": 9
+        },
+        {
+            "nome": "LITERATURA COMPARADA",
+            "carga_horaria": 60,
+            "ano_semestre": 9
+        },
+        {
+            "nome": "LITERATURA CEARENSE",
+            "carga_horaria": 60,
+            "ano_semestre": 9
+        },
+        {
+            "nome": "LITERATURA INGLESA III",
+            "carga_horaria": 60,
+            "ano_semestre": 9
+        },
+        {
+            "nome": "ANÁLISE DO DISCURSO",
+            "carga_horaria": 60,
+            "ano_semestre": 9
+        },
+        {
+            "nome": "PRODUÇÃO ESCRITA EM LÍNGUA INGLESA",
+            "carga_horaria": 60,
+            "ano_semestre": 10
+        },
+        {
+            "nome": "LITERATURA NORTE-AMERICANA III",
+            "carga_horaria": 60,
+            "ano_semestre": 10
+        },
+        {
+            "nome": "SEMIOLOGIA E COMUNICAÇÃO",
+            "carga_horaria": 60,
+            "ano_semestre": 10
+        },
+        {
+            "nome": "CRÍTICA LITERÁRIA",
+            "carga_horaria": 60,
+            "ano_semestre": 10
+        },
+        {
+            "nome": "INTRODUÇÃO AOS ESTUDOS INTERCULTURAIS",
+            "carga_horaria": 60,
+            "ano_semestre": 10
+        },
+        {
+            "nome": "HISTÓRIA DA EDUCAÇÃO",
+            "carga_horaria": 60,
+            "ano_semestre": 10
+        },
+        {
+            "nome": "TRADUÇÃO FUNDAMENTOS E TÉCNICAS (PORTUGUÊS/INGLÊS)",
+            "carga_horaria": 60,
+            "ano_semestre": 10
+        },
+        {
+            "nome": "TÓPICOS DE FILOSOFIA DA LINGUAGEM",
+            "carga_horaria": 60,
+            "ano_semestre": 10
+        },
+        {
+            "nome": "EDUCAÇÃO FÍSICA",
+            "carga_horaria": 60,
+            "ano_semestre": 10
+        },
+        {
+            "nome": "LITERATURA AFRICANA DE EXPRESSÃO EM LÍNGUA PORTUGUESA (PANORAMA GERAL)",
+            "carga_horaria": 60,
+            "ano_semestre": 10
+        },
+        {
+            "nome": "LITERATURA E FILOSOFIA",
+            "carga_horaria": 60,
+            "ano_semestre": 10
+        },
+        {
+            "nome": "LITERATURA E SAGRADO",
+            "carga_horaria": 60,
+            "ano_semestre": 10
+        },
+        {
+            "nome": "TÓPICOS EM LITERATURA NORTE AMERICANA (PROBLEMÁTICAS DA PÓS–MODERNIDADE)",
+            "carga_horaria": 60,
+            "ano_semestre": 10
+        },
+        {
+            "nome": "VOZES DA DIVERSIDADE NA CULTURA CONTEMPORÂNEA INGLESA/NORTE-AMERICANA",
+            "carga_horaria": 60,
+            "ano_semestre": 10
+        },
+        {
+            "nome": "EDUCAÇÃO PARA A DIVERSIDADE",
+            "carga_horaria": 60,
+            "ano_semestre": 10
+        },
+        {
+            "nome": "INTRODUÇÃO EM EDUCAÇÃO À DISTÂNCIA",
+            "carga_horaria": 60,
+            "ano_semestre": 10
+        },
+        {
+            "nome": "TÓPICOS DE ORALIDADE EM LÍNGUA INGLESA",
+            "carga_horaria": 60,
+            "ano_semestre": 10
+        },
+        {
+            "nome": "CULTURA BRITÂNICA",
+            "carga_horaria": 40,
+            "ano_semestre": 10
+        },
+        {
+            "nome": "CULTURA AMERICANA",
+            "carga_horaria": 40,
+            "ano_semestre": 10
+        },
+        {
+            "nome": "GESTÃO ESCOLAR",
+            "carga_horaria": 40,
+            "ano_semestre": 10
+        },
+        {
+            "nome": "EDUCAÇÃO DE JOVENS E ADULTOS",
+            "carga_horaria": 40,
+            "ano_semestre": 10
+        },
+        {
+            "nome": "ESTILÍSTICA",
+            "carga_horaria": 40,
+            "ano_semestre": 10
+        }
+    ]
+}

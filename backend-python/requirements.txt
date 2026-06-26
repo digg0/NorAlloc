@@ -6,4 +6,8 @@ asyncpg
 alembic           
 python-multipart
 pydantic-settings
+bcrypt
+pydantic[email]
+z3-solver
+reportlab
 # pyjwt            # <- (Opcional/A definir) Adicione a lib de JWT de sua escolha

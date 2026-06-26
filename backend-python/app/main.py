@@ -1,15 +1,72 @@
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware 
 import os
 
-app = FastAPI(title="Gestão de Horários - API")
+from app.core.database import Base, engine
+from app.core.seed import seed_usuarios_demo
+
+# 1. IMPORTA OS MODELOS PRIMEIRO (Evita conflitos de nomes)
+from app.models import *
+
+# 2. IMPORTA OS ROUTERS DEPOIS
+from app.api.routers import auth
+from app.api.routers import coordenadores
+from app.api.routers import disponibilidade
+from app.api.routers import disciplinas 
+from app.api.routers import horarios
+from app.api.routers import ofertas
+from app.api.routers import disponibilidade_turma
+from app.api.routers import cursos
+from app.api.routers import semestre
+from app.api.routers import usuario
+from app.api.routers import professores
+from app.api.routers import preferencias_professor
+from app.api.routers import turmas
+from app.api.routers import dashboard
+from app.api.routers import relatorios
+from app.api.routers import alocacoes
+
+Base.metadata.create_all(bind=engine)
+
+# Cria os usuários de demonstração (admin/coordenador/professor) se faltarem.
+seed_usuarios_demo()
+
+app = FastAPI(
+    title="NorAlloc - API",
+    description="Sistema de Gestão e Alocação de Horários - Módulo Admin",
+    version="1.0.0"
+)
+
+# Configuração do CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"], # Permite requisições de qualquer frontend
+    allow_credentials=True,
+    allow_methods=["*"], # Permite POST, GET, PUT, DELETE, etc.
+    allow_headers=["*"],
+)
+
+app.include_router(auth.router)
+app.include_router(coordenadores.router)
+app.include_router(disponibilidade.router)
+app.include_router(disciplinas.router)
+app.include_router(horarios.router)
+app.include_router(ofertas.router)
+app.include_router(disponibilidade_turma.router)
+app.include_router(cursos.router)
+app.include_router(semestre.router)
+app.include_router(usuario.router)
+app.include_router(professores.router)
+app.include_router(preferencias_professor.router)
+app.include_router(turmas.router)
+app.include_router(dashboard.router)
+app.include_router(relatorios.router)
+app.include_router(alocacoes.router)
+
 
 @app.get("/")
 def read_root():
-    return {
-        "status": "Online",
-        "mensagem": "Backend Python (FastAPI) rodando com sucesso!",
-        "database_url": os.getenv("DATABASE_URL")
-    }
+    return {"status": "Online", "mensagem": "Backend FastAPI funcionando!"}
 
 @app.get("/health")
 def health_check():

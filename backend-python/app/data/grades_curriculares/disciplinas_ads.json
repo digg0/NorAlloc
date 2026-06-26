@@ -1,0 +1,186 @@
+{
+    "nome_curso": "Análise e Desenvolvimento de Sistemas",
+    "nivel_curso": "Superior",
+    "disciplinas": [
+        {
+            "nome": "Banco de Dados",
+            "codigo": "ADS01",
+            "carga_horaria": 80,
+            "ano_semestre": 1
+        },
+        {
+            "nome": "Fundamentos de Matemática",
+            "codigo": "ADS02",
+            "carga_horaria": 80,
+            "ano_semestre": 1
+        },
+        {
+            "nome": "Inglês Técnico",
+            "codigo": "ADS03",
+            "carga_horaria": 40,
+            "ano_semestre": 1
+        },
+        {
+            "nome": "Introdução à Computação",
+            "codigo": "ADS04",
+            "carga_horaria": 40,
+            "ano_semestre": 1
+        },
+        {
+            "nome": "Introdução à Programação",
+            "codigo": "ADS05",
+            "carga_horaria": 80,
+            "ano_semestre": 1
+        },
+        {
+            "nome": "Pensamento Computacional",
+            "codigo": "ADS06",
+            "carga_horaria": 40,
+            "ano_semestre": 1
+        },
+        {
+            "nome": "Tecnologias WEB",
+            "codigo": "ADS07",
+            "carga_horaria": 40,
+            "ano_semestre": 1
+        },
+        {
+            "nome": "Comunicação e Expressão",
+            "codigo": "ADS08",
+            "carga_horaria": 40,
+            "ano_semestre": 2
+        },
+        {
+            "nome": "Empreendedorismo",
+            "codigo": "ADS09",
+            "carga_horaria": 40,
+            "ano_semestre": 2
+        },
+        {
+            "nome": "Engenharia de Software",
+            "codigo": "ADS10",
+            "carga_horaria": 40,
+            "ano_semestre": 2
+        },
+        {
+            "nome": "Estrutura de Dados",
+            "codigo": "ADS11",
+            "carga_horaria": 80,
+            "ano_semestre": 2
+        },
+        {
+            "nome": "Ética e Responsabilidade Socioambiental",
+            "codigo": "ADS12",
+            "carga_horaria": 40,
+            "ano_semestre": 2
+        },
+        {
+            "nome": "Programação Orientada a Objetos",
+            "codigo": "ADS13",
+            "carga_horaria": 80,
+            "ano_semestre": 2
+        },
+        {
+            "nome": "Redes de Computadores",
+            "codigo": "ADS14",
+            "carga_horaria": 80,
+            "ano_semestre": 2
+        },
+        {
+            "nome": "Análise e Projeto de Sistemas",
+            "codigo": "ADS15",
+            "carga_horaria": 80,
+            "ano_semestre": 3
+        },
+        {
+            "nome": "Bancos de Dados Não-Relacionais",
+            "codigo": "ADS16",
+            "carga_horaria": 40,
+            "ano_semestre": 3
+        },
+        {
+            "nome": "Gestão de Projetos",
+            "codigo": "ADS17",
+            "carga_horaria": 40,
+            "ano_semestre": 3
+        },
+        {
+            "nome": "Interação Humano-Computador",
+            "codigo": "ADS18",
+            "carga_horaria": 40,
+            "ano_semestre": 3
+        },
+        {
+            "nome": "Programação para Dispositivos Móveis",
+            "codigo": "ADS19",
+            "carga_horaria": 80,
+            "ano_semestre": 3
+        },
+        {
+            "nome": "Programação WEB I",
+            "codigo": "ADS20",
+            "carga_horaria": 80,
+            "ano_semestre": 3
+        },
+        {
+            "nome": "Sistemas Operacionais",
+            "codigo": "ADS21",
+            "carga_horaria": 40,
+            "ano_semestre": 3
+        },
+        {
+            "nome": "Fundamentos de Segurança da Informação",
+            "codigo": "ADS22",
+            "carga_horaria": 40,
+            "ano_semestre": 4
+        },
+        {
+            "nome": "Inteligência Computacional",
+            "codigo": "ADS23",
+            "carga_horaria": 80,
+            "ano_semestre": 4
+        },
+        {
+            "nome": "Padrões de Projeto de Software",
+            "codigo": "ADS25",
+            "carga_horaria": 80,
+            "ano_semestre": 4
+        },
+        {
+            "nome": "Projeto Integrador Multidisciplinar I",
+            "codigo": "ADS26",
+            "carga_horaria": 80,
+            "ano_semestre": 4
+        },
+        {
+            "nome": "Programação WEB II",
+            "codigo": "ADS27",
+            "carga_horaria": 80,
+            "ano_semestre": 4
+        },
+        {
+            "nome": "Desenvolvimento e Operações",
+            "codigo": "ADS28",
+            "carga_horaria": 80,
+            "ano_semestre": 5
+        },
+        {
+            "nome": "Projeto Integrador Multidisciplinar II",
+            "codigo": "ADS31",
+            "carga_horaria": 80,
+            "ano_semestre": 5
+        },
+        {
+            "nome": "Projeto Social",
+            "codigo": "ADS32",
+            "carga_horaria": 40,
+            "ano_semestre": 5
+        },
+        {
+            "nome": "Testes e Qualidade de Software",
+            "codigo": "ADS33",
+            "carga_horaria": 80,
+            "ano_semestre": 5
+        }
+    ]
+}

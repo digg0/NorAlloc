@@ -1,0 +1,19 @@
+from sqlalchemy import Column, Integer, String, Time, UniqueConstraint
+from app.core.database import Base
+
+
+class Horario(Base):
+    __tablename__ = "horarios"
+
+    id = Column(Integer, primary_key=True, index=True)
+    dia_semana = Column(String(10), nullable=False)
+    turno = Column(String(10), nullable=False)
+    hora_inicio = Column(Time, nullable=False)
+    hora_fim = Column(Time, nullable=False)
+
+    __table_args__ = (
+        UniqueConstraint(
+            "dia_semana", "turno", "hora_inicio", "hora_fim",
+            name="uq_horario_dia_turno_inicio_fim",
+        ),
+    )
