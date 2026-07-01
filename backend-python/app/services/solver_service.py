@@ -13,9 +13,13 @@ semestre — não só o que está sendo gerado agora.
 
 Restrições *soft* (preferências, maximizadas via z3.Optimize): preferir
 manhã, preferir blocos duplos (aulas em horários consecutivos no mesmo
-dia). O foco é aproximar a alocação da disponibilidade/preferência real do
-professor — não há penalização por dia da semana (ex.: sexta-feira não é
-evitada por padrão).
+dia), limitar cada oferta a no máximo 2 slots por dia (distribui
+disciplinas de 4h em pelo menos 2 dias), evitar sexta-feira quando
+configurado em `PreferenciaProfessor.evitar_sexta`, penalizar janelas
+maiores que 60 min entre aulas do mesmo professor no mesmo dia
+(`evitar_janelas`) e respeitar mínimo de aulas por dia (`min_aulas_dia`).
+O foco é aproximar a alocação da disponibilidade/preferência real do
+professor.
 
 Sobrecarga e janelas entre aulas não são tratadas aqui: a spec as define como
 alertas calculados dinamicamente (ver `validacao_service.py`), não como
@@ -35,11 +39,11 @@ das restrições soft de cada professor por sua posição num ranking de
 antiguidade — sem afetar as restrições hard (conflito, disponibilidade).
 """
 from collections import defaultdict
-from datetime import date
+from datetime import date, datetime
 from typing import Dict, List, Optional, Tuple
 
 from sqlalchemy.orm import Session
-from z3 import And, Bool, If, Not, Optimize, Sum, is_true, sat
+from z3 import And, Bool, If, Not, Optimize, Or, Sum, is_true, sat
 
 from app.core.regras_carga import max_creditos_semanais
 from app.models.alocacao import Alocacao
@@ -61,6 +65,8 @@ DIA_CURTO = {
     "SABADO": "SAB",
 }
 TURNO_LETRA = {"MANHA": "M", "TARDE": "T", "NOITE": "N"}
+
+_JANELA_MAXIMA_MINUTOS = 60
 
 
 def _slot_codes_por_horario(horarios: List[Horario]) -> Dict[int, str]:
@@ -84,6 +90,13 @@ def _slot_codes_por_horario(horarios: List[Horario]) -> Dict[int, str]:
         for indice, h in enumerate(lista, start=1):
             codigos[h.id] = f"{dia_c}_{letra}{indice}"
     return codigos
+
+
+def _gap_minutos(hora_fim, hora_inicio) -> int:
+    base = datetime(2000, 1, 1)
+    t1 = datetime.combine(base.date(), hora_fim)
+    t2 = datetime.combine(base.date(), hora_inicio)
+    return max(0, int((t2 - t1).total_seconds() // 60))
 
 
 def _calcular_prioridade_professores(professores: Dict[int, Professor]) -> Dict[int, int]:
@@ -363,6 +376,71 @@ def gerar_grade(semestre_id: int, db: Session, curso_id: Optional[int] = None) -
                 for h1, h2 in zip(lista, lista[1:]):
                     if h1.hora_fim == h2.hora_inicio:
                         opt.add_soft(And(x[(o.id, h1.id)], x[(o.id, h2.id)]), weight=2 * peso_prioridade)
+
+    # Soft: distribuição por dias — cada oferta usa no máximo 2 slots por
+    # dia, incentivando o padrão 2+2 para disciplinas de 4h e reduzindo a
+    # concentração de toda a carga numa única segunda-feira.
+    _por_oferta_dia: Dict[Tuple[int, str], list] = defaultdict(list)
+    for o in ofertas:
+        for h in elegiveis[o.id]:
+            _por_oferta_dia[(o.id, h.dia_semana)].append(x[(o.id, h.id)])
+    for vars_dia in _por_oferta_dia.values():
+        if len(vars_dia) > 2:
+            opt.add_soft(Sum([If(v, 1, 0) for v in vars_dia]) <= 2, weight=2)
+
+    # Soft: evitar_sexta, evitar_janelas, min_aulas_dia.
+    # Agrega vars por (professor, dia, horario_id) para os loops abaixo.
+    _prof_dia_slots: Dict[Tuple[int, str], Dict[int, list]] = {}
+    for o in ofertas:
+        if not o.professor_id:
+            continue
+        for h in elegiveis[o.id]:
+            key = (o.professor_id, h.dia_semana)
+            if key not in _prof_dia_slots:
+                _prof_dia_slots[key] = defaultdict(list)
+            _prof_dia_slots[key][h.id].append(x[(o.id, h.id)])
+
+    _horario_by_id: Dict[int, Horario] = {h.id: h for h in horarios}
+
+    # evitar_sexta: penaliza slots de sexta para quem tem a preferência.
+    for o in ofertas:
+        if not o.professor_id:
+            continue
+        pref = preferencias_map.get(o.professor_id)
+        if not pref or not pref.evitar_sexta:
+            continue
+        peso_p = prioridade.get(o.professor_id, 1)
+        for h in elegiveis[o.id]:
+            if h.dia_semana == "SEXTA":
+                opt.add_soft(Not(x[(o.id, h.id)]), weight=3 * peso_p)
+
+    # evitar_janelas e min_aulas_dia: iterar por (professor, dia).
+    for (professor_id, dia), slots in _prof_dia_slots.items():
+        pref = preferencias_map.get(professor_id)
+        if not pref:
+            continue
+        peso_p = prioridade.get(professor_id, 1)
+
+        if pref.evitar_janelas:
+            horarios_dia = sorted(
+                [_horario_by_id[h_id] for h_id in slots],
+                key=lambda h: h.hora_inicio,
+            )
+            for i, h1 in enumerate(horarios_dia):
+                for h2 in horarios_dia[i + 1:]:
+                    if _gap_minutos(h1.hora_fim, h2.hora_inicio) > _JANELA_MAXIMA_MINUTOS:
+                        vs1, vs2 = slots[h1.id], slots[h2.id]
+                        occ1 = vs1[0] if len(vs1) == 1 else Or(vs1)
+                        occ2 = vs2[0] if len(vs2) == 1 else Or(vs2)
+                        opt.add_soft(Not(And(occ1, occ2)), weight=2 * peso_p)
+
+        if pref.min_aulas_dia:
+            all_vars = [v for vs in slots.values() for v in vs]
+            total = Sum([If(v, 1, 0) for v in all_vars])
+            opt.add_soft(
+                Or(total == 0, total >= pref.min_aulas_dia),
+                weight=2 * peso_p,
+            )
 
     if opt.check() != sat:
         return GerarGradeResponse(
