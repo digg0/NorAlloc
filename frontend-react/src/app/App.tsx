@@ -26,6 +26,7 @@ import { AlertasView } from './components/AlertasView';
 import { RelatoriosView } from './components/RelatoriosView';
 import { listarSemestres, criarSemestre, type SemestreUI, type SemestreFormData } from './services/semestres';
 import { obterDisponibilidade, salvarDisponibilidade } from './services/disponibilidadeProfessor';
+import { obterPreferencias, salvarPreferencias, PREFERENCIAS_PADRAO, type PreferenciasProfessorUI } from './services/preferenciasProfessor';
 import { listarAlocacoesPorProfessor } from './services/alocacoes';
 import { listarHorarios as listarHorariosReais } from './services/horarios';
 import { listarDisciplinasBackend } from './services/disciplinasBackend';
@@ -194,15 +195,15 @@ TableCell.displayName = 'TableCell';
 
 type RegimeTrabalho = 'DE' | '20H' | '40H';
 
-type Professor = { id: number; nome: string; email: string; regimeTrabalho: RegimeTrabalho; areaAtuacao: string };
+type Professor = { id: number; nome: string; email: string; regimeTrabalho: RegimeTrabalho; areaAtuacao: string; dataIngresso: string; dataNascimento: string };
 
 // ── Mock Data ──────────────────────────────────────────────────────────────────
 
 const MOCK_PROFESSORES: Professor[] = [
-  { id: 1, nome: 'Ana Silva', email: 'ana.silva@ifce.edu.br', regimeTrabalho: 'DE', areaAtuacao: 'Computação' },
-  { id: 2, nome: 'Carlos Santos', email: 'carlos.santos@ifce.edu.br', regimeTrabalho: '40H', areaAtuacao: 'Matemática' },
-  { id: 3, nome: 'Beatriz Costa', email: 'beatriz.costa@ifce.edu.br', regimeTrabalho: 'DE', areaAtuacao: 'Redes' },
-  { id: 4, nome: 'João Oliveira', email: 'joao.oliveira@ifce.edu.br', regimeTrabalho: '20H', areaAtuacao: 'Computação' },
+  { id: 1, nome: 'Ana Silva', email: 'ana.silva@ifce.edu.br', regimeTrabalho: 'DE', areaAtuacao: 'Computação', dataIngresso: '', dataNascimento: '' },
+  { id: 2, nome: 'Carlos Santos', email: 'carlos.santos@ifce.edu.br', regimeTrabalho: '40H', areaAtuacao: 'Matemática', dataIngresso: '', dataNascimento: '' },
+  { id: 3, nome: 'Beatriz Costa', email: 'beatriz.costa@ifce.edu.br', regimeTrabalho: 'DE', areaAtuacao: 'Redes', dataIngresso: '', dataNascimento: '' },
+  { id: 4, nome: 'João Oliveira', email: 'joao.oliveira@ifce.edu.br', regimeTrabalho: '20H', areaAtuacao: 'Computação', dataIngresso: '', dataNascimento: '' },
 ];
 
 // ── Time Slot Constants ────────────────────────────────────────────────────────
@@ -654,13 +655,13 @@ function AppShell({ currentUser, onLogout }: { currentUser: SessaoUsuario; onLog
 
   // ── Professor CRUD ────────────────────────────────────────────────────────
   type ProfForm = Omit<Professor, 'id'> & { senha: string };
-  const emptyProfForm: ProfForm = { nome: '', email: '', regimeTrabalho: 'DE', areaAtuacao: '', senha: '' };
+  const emptyProfForm: ProfForm = { nome: '', email: '', regimeTrabalho: 'DE', areaAtuacao: '', senha: '', dataIngresso: '', dataNascimento: '' };
   const [profModal, setProfModal] = useState<{ open: boolean; editId: number | null }>({ open: false, editId: null });
   const [profForm, setProfForm] = useState<ProfForm>(emptyProfForm);
   const [profFormError, setProfFormError] = useState('');
 
   const openProfAdd = () => { setProfForm(emptyProfForm); setProfFormError(''); setProfModal({ open: true, editId: null }); };
-  const openProfEdit = (p: Professor) => { setProfForm({ nome: p.nome, email: p.email, regimeTrabalho: p.regimeTrabalho, areaAtuacao: p.areaAtuacao, senha: '' }); setProfFormError(''); setProfModal({ open: true, editId: p.id }); };
+  const openProfEdit = (p: Professor) => { setProfForm({ nome: p.nome, email: p.email, regimeTrabalho: p.regimeTrabalho, areaAtuacao: p.areaAtuacao, senha: '', dataIngresso: p.dataIngresso, dataNascimento: p.dataNascimento }); setProfFormError(''); setProfModal({ open: true, editId: p.id }); };
   const saveProf = async () => {
     if (!profForm.nome.trim() || !profForm.email.trim()) { setProfFormError('Nome e e-mail são obrigatórios.'); return; }
     try {
@@ -917,6 +918,54 @@ function AppShell({ currentUser, onLogout }: { currentUser: SessaoUsuario; onLog
       setDispErro(err?.message || 'Erro ao salvar disponibilidade.');
     } finally {
       setDispLoading(false);
+    }
+  };
+
+  // ── Preferências de alocação do professor (soft/hard constraints do solver) ─
+  const [preferencias, setPreferencias] = useState<PreferenciasProfessorUI>(PREFERENCIAS_PADRAO);
+  const [prefLoading, setPrefLoading] = useState(false);
+  const [prefAlocSaved, setPrefAlocSaved] = useState(false);
+  const [prefErro, setPrefErro] = useState('');
+
+  useEffect(() => {
+    if (!profLogado) return;
+    setPrefErro('');
+    obterPreferencias(profLogado.id)
+      .then(reg => setPreferencias(reg ?? PREFERENCIAS_PADRAO))
+      .catch(err => setPrefErro(err?.message || 'Erro ao carregar preferências.'));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [profLogado?.id]);
+
+  const togglePref = (campo: 'prefereManha' | 'prefereAulaDupla' | 'evitarJanelas' | 'evitarSexta') => {
+    setPreferencias(prev => ({ ...prev, [campo]: !prev[campo] }));
+  };
+
+  const setPrefNumero = (campo: 'maxAulasDia' | 'minAulasDia', valor: string) => {
+    const n = valor === '' ? null : Number(valor);
+    setPreferencias(prev => ({ ...prev, [campo]: n && n > 0 ? n : null }));
+  };
+
+  const salvarPrefAloc = async () => {
+    if (!profLogado) return;
+    if (
+      preferencias.minAulasDia &&
+      preferencias.maxAulasDia &&
+      preferencias.minAulasDia > preferencias.maxAulasDia
+    ) {
+      setPrefErro('O mínimo de aulas por dia não pode ser maior que o máximo.');
+      return;
+    }
+    setPrefLoading(true);
+    setPrefErro('');
+    try {
+      const salvo = await salvarPreferencias(profLogado.id, preferencias);
+      setPreferencias(salvo);
+      setPrefAlocSaved(true);
+      setTimeout(() => setPrefAlocSaved(false), 2500);
+    } catch (err: any) {
+      setPrefErro(err?.message || 'Erro ao salvar preferências.');
+    } finally {
+      setPrefLoading(false);
     }
   };
 
@@ -1758,6 +1807,108 @@ function AppShell({ currentUser, onLogout }: { currentUser: SessaoUsuario; onLog
                   </div>
                 </CardContent>
               </Card>
+
+              <Card>
+                <CardHeader>
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div>
+                      <CardTitle>Preferências de Alocação</CardTitle>
+                      <CardDescription className="mt-1">
+                        Estas preferências são consideradas pelo solver ao gerar a grade. Elas orientam a alocação, mas não são garantidas.
+                      </CardDescription>
+                    </div>
+                    <Button size="sm" onClick={salvarPrefAloc} disabled={prefLoading}>
+                      <Save className="mr-1.5 h-3.5 w-3.5" />{prefLoading ? 'Salvando…' : 'Salvar preferências'}
+                    </Button>
+                  </div>
+                  {prefErro && (
+                    <div className="mt-3 flex items-center gap-2 px-3 py-2.5 bg-destructive/10 border border-destructive/20 rounded-lg">
+                      <AlertCircle className="h-4 w-4 text-destructive shrink-0" />
+                      <p className="text-xs text-destructive">{prefErro}</p>
+                    </div>
+                  )}
+                  <AnimatePresence>
+                    {prefAlocSaved && (
+                      <motion.div
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: 'auto' }}
+                        exit={{ opacity: 0, height: 0 }}
+                        className="mt-3 flex items-center gap-2 px-3 py-2.5 bg-green-50 border border-green-200 rounded-lg"
+                      >
+                        <CheckCircle2 className="h-4 w-4 text-green-600 shrink-0" />
+                        <p className="text-xs text-green-700 font-medium">Preferências salvas com sucesso.</p>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {([
+                      { campo: 'prefereManha', titulo: 'Preferir manhã', desc: 'Priorizar aulas no turno da manhã.' },
+                      { campo: 'prefereAulaDupla', titulo: 'Preferir aulas duplas', desc: 'Agrupar aulas em blocos geminados consecutivos.' },
+                      { campo: 'evitarJanelas', titulo: 'Evitar janelas', desc: 'Reduzir intervalos ociosos entre aulas no mesmo dia.' },
+                      { campo: 'evitarSexta', titulo: 'Evitar sexta-feira', desc: 'Evitar alocação de aulas às sextas.' },
+                    ] as const).map(({ campo, titulo, desc }) => {
+                      const ativo = preferencias[campo];
+                      return (
+                        <button
+                          key={campo}
+                          type="button"
+                          onClick={() => togglePref(campo)}
+                          className={cn(
+                            'text-left rounded-lg border px-3 py-3 transition-colors flex items-start gap-3',
+                            ativo
+                              ? 'bg-green-50 border-green-400'
+                              : 'bg-gray-50 border-gray-200 hover:bg-gray-100'
+                          )}
+                        >
+                          <div className={cn(
+                            'mt-0.5 h-5 w-5 rounded border flex items-center justify-center shrink-0',
+                            ativo ? 'bg-green-500 border-green-500 text-white' : 'bg-white border-gray-300'
+                          )}>
+                            {ativo && <Check className="h-3.5 w-3.5" />}
+                          </div>
+                          <div>
+                            <p className={cn('text-sm font-medium', ativo ? 'text-green-900' : 'text-foreground')}>{titulo}</p>
+                            <p className="text-xs text-muted-foreground mt-0.5">{desc}</p>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <Label htmlFor="minAulasDia" className="text-xs">Mínimo de aulas por dia</Label>
+                      <Input
+                        id="minAulasDia"
+                        type="number"
+                        min={1}
+                        max={6}
+                        placeholder="Sem mínimo"
+                        value={preferencias.minAulasDia ?? ''}
+                        onChange={e => setPrefNumero('minAulasDia', e.target.value)}
+                        className="h-9"
+                      />
+                      <p className="text-[11px] text-muted-foreground">Quando o professor tiver aula no dia, ter ao menos este número de aulas (1–6).</p>
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label htmlFor="maxAulasDia" className="text-xs">Máximo de aulas por dia</Label>
+                      <Input
+                        id="maxAulasDia"
+                        type="number"
+                        min={1}
+                        max={8}
+                        placeholder="Sem limite"
+                        value={preferencias.maxAulasDia ?? ''}
+                        onChange={e => setPrefNumero('maxAulasDia', e.target.value)}
+                        className="h-9"
+                      />
+                      <p className="text-[11px] text-muted-foreground">Limite rígido de aulas em um mesmo dia (1–8).</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
             </motion.div>
           )}
 
@@ -1947,6 +2098,18 @@ function AppShell({ currentUser, onLogout }: { currentUser: SessaoUsuario; onLog
                     <div>
                       <Label className="text-xs mb-1.5 block">Área de Atuação</Label>
                       <Input value={profForm.areaAtuacao} onChange={e => setProfForm(f => ({ ...f, areaAtuacao: e.target.value }))} placeholder="Ex.: Computação, Matemática..." />
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <Label className="text-xs mb-1.5 block">Data de ingresso no campus</Label>
+                        <Input type="date" value={profForm.dataIngresso} onChange={e => setProfForm(f => ({ ...f, dataIngresso: e.target.value }))} />
+                        <p className="text-[11px] text-muted-foreground mt-1">Critério de desempate do solver (mais antigo tem prioridade).</p>
+                      </div>
+                      <div>
+                        <Label className="text-xs mb-1.5 block">Data de nascimento</Label>
+                        <Input type="date" value={profForm.dataNascimento} onChange={e => setProfForm(f => ({ ...f, dataNascimento: e.target.value }))} />
+                        <p className="text-[11px] text-muted-foreground mt-1">Desempate secundário (mais velho tem prioridade).</p>
+                      </div>
                     </div>
                     <div>
                       <Label className="text-xs mb-1.5 block">
