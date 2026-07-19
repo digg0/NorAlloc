@@ -9,6 +9,8 @@ interface ProfessorBackend {
   regime_trabalho: string;
   area: string | null;
   carga_maxima: number | null;
+  data_ingresso: string | null;
+  data_nascimento: string | null;
 }
 
 export interface ProfessorUI {
@@ -17,6 +19,8 @@ export interface ProfessorUI {
   email: string;
   regimeTrabalho: RegimeTrabalho;
   areaAtuacao: string;
+  dataIngresso: string; // ISO 'YYYY-MM-DD' ou '' quando não informado
+  dataNascimento: string;
 }
 
 export interface ProfessorFormData {
@@ -25,6 +29,8 @@ export interface ProfessorFormData {
   regimeTrabalho: RegimeTrabalho;
   areaAtuacao: string;
   senha: string; // cria/atualiza a conta de login (só enviado quando preenchido)
+  dataIngresso: string; // usado no critério de desempate por antiguidade do solver
+  dataNascimento: string;
 }
 
 const CARGA_POR_REGIME: Record<RegimeTrabalho, number> = {
@@ -40,6 +46,8 @@ function paraUI(p: ProfessorBackend): ProfessorUI {
     email: p.email,
     regimeTrabalho: (p.regime_trabalho as RegimeTrabalho) || 'DE',
     areaAtuacao: p.area ?? '',
+    dataIngresso: p.data_ingresso ?? '',
+    dataNascimento: p.data_nascimento ?? '',
   };
 }
 
@@ -50,6 +58,8 @@ function paraBackend(f: ProfessorFormData) {
     regime_trabalho: f.regimeTrabalho,
     area: f.areaAtuacao || null,
     carga_maxima: CARGA_POR_REGIME[f.regimeTrabalho],
+    data_ingresso: f.dataIngresso || null,
+    data_nascimento: f.dataNascimento || null,
   };
   if (f.senha && f.senha.trim()) body.password = f.senha;
   return body;
