@@ -98,6 +98,49 @@ export async function removerAlocacao(alocacaoId: number): Promise<void> {
   await apiFetch<void>(`/alocacoes/${alocacaoId}`, { method: 'DELETE' });
 }
 
+export interface PropostaItemUI {
+  ofertaId: number;
+  horarioId: number;
+  oferta: OfertaBackendNested | null;
+  horario: HorarioBackendNested | null;
+}
+
+interface PropostaItemBackend {
+  oferta_id: number;
+  horario_id: number;
+  oferta: OfertaBackendNested | null;
+  horario: HorarioBackendNested | null;
+}
+
+export async function gerarPropostas(semestreId: number): Promise<PropostaItemUI[][]> {
+  const dados = await apiFetch<PropostaItemBackend[][]>(
+    `/alocacoes/gerar-grade-propostas?semestre_id=${semestreId}`,
+    { method: 'POST' }
+  );
+  return dados.map((proposta) =>
+    proposta.map((item) => ({
+      ofertaId: item.oferta_id,
+      horarioId: item.horario_id,
+      oferta: item.oferta,
+      horario: item.horario,
+    }))
+  );
+}
+
+export async function aplicarProposta(
+  semestreId: number,
+  items: Array<{ oferta_id: number; horario_id: number }>
+): Promise<GerarGradeResultadoUI> {
+  const resultado = await apiFetch<GerarGradeBackend>(
+    `/alocacoes/aplicar-proposta?semestre_id=${semestreId}`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ items }),
+    }
+  );
+  return { sucesso: resultado.sucesso, mensagem: resultado.mensagem, totalAlocacoes: resultado.total_alocacoes };
+}
+
 export async function validarSemestre(semestreId: number): Promise<AlertaUI[]> {
   const dados = await apiFetch<AlertaBackend[]>(`/alocacoes/validar/${semestreId}`);
   return dados.map((a) => ({

@@ -22,7 +22,6 @@ import { listarCursos as listarCursosReais } from './services/cursos';
 import { OfertasView } from './components/OfertasView';
 import { DisponibilidadeTurmaView } from './components/DisponibilidadeTurmaView';
 import { GradeView } from './components/GradeView';
-import { AlertasView } from './components/AlertasView';
 import { RelatoriosView } from './components/RelatoriosView';
 import { listarSemestres, criarSemestre, type SemestreUI, type SemestreFormData } from './services/semestres';
 import { obterDisponibilidade, salvarDisponibilidade } from './services/disponibilidadeProfessor';
@@ -247,7 +246,7 @@ function fmtDate(iso: string) {
 
 // ── Main App ───────────────────────────────────────────────────────────────────
 
-type View = 'dashboard' | 'wizard' | 'professores' | 'disciplinas' | 'semestres' | 'turmas' | 'coordenadores' | 'perfil' | 'minha-agenda' | 'minha-disponibilidade' | 'disciplinas-preferidas' | 'cursos' | 'ofertas' | 'disponibilidade-turma' | 'grade' | 'alertas' | 'relatorios';
+type View = 'dashboard' | 'wizard' | 'professores' | 'disciplinas' | 'semestres' | 'turmas' | 'coordenadores' | 'perfil' | 'minha-agenda' | 'minha-disponibilidade' | 'disciplinas-preferidas' | 'cursos' | 'ofertas' | 'disponibilidade-turma' | 'grade' | 'relatorios';
 
 // ── DatePicker ─────────────────────────────────────────────────────────────────
 
@@ -610,14 +609,13 @@ function AppShell({ currentUser, onLogout }: { currentUser: SessaoUsuario; onLog
   };
 
   // ── Entidades com CRUD funcional ──────────────────────────────────────────
-  const [professores, setProfessores] = useState<Professor[]>([...MOCK_PROFESSORES]);
+  const [professores, setProfessores] = useState<Professor[]>([]);
+  const [profLoadError, setProfLoadError] = useState<string | null>(null);
 
-  // Carrega os professores reais do backend ao montar (cai para o mock se o
-  // backend estiver indisponível, mantendo a demo navegável).
   useEffect(() => {
     listarProfessores()
       .then(setProfessores)
-      .catch(() => { /* backend offline: mantém os dados de exemplo */ });
+      .catch(() => setProfLoadError('Não foi possível carregar os professores do servidor.'));
   }, []);
 
   // Dados agregados do dashboard, puxados do banco conforme o perfil.
@@ -753,7 +751,6 @@ function AppShell({ currentUser, onLogout }: { currentUser: SessaoUsuario; onLog
     { view: 'ofertas',                label: 'Ofertas de Disciplina',    icon: <ClipboardList   className="mr-2 h-4 w-4" /> },
     { view: 'disponibilidade-turma',  label: 'Disponibilidade de Turmas', icon: <CalendarCheck   className="mr-2 h-4 w-4" /> },
     { view: 'grade',                  label: 'Grade Horária',            icon: <Play            className="mr-2 h-4 w-4" /> },
-    { view: 'alertas',                label: 'Alertas',                  icon: <AlertTriangle   className="mr-2 h-4 w-4" /> },
     { view: 'relatorios',             label: 'Relatórios',               icon: <BarChart3       className="mr-2 h-4 w-4" /> },
     // Coordenadores também são docentes da instituição — também informam a
     // própria disponibilidade de horário, como qualquer professor.
@@ -785,7 +782,6 @@ function AppShell({ currentUser, onLogout }: { currentUser: SessaoUsuario; onLog
     ofertas:                  'Ofertas de Disciplina',
     'disponibilidade-turma':  'Disponibilidade de Turmas',
     grade:                    'Grade Horária',
-    alertas:                  'Alertas da Grade',
     relatorios:                'Relatórios',
   };
 
@@ -1157,8 +1153,12 @@ function AppShell({ currentUser, onLogout }: { currentUser: SessaoUsuario; onLog
                     <AlertCircle className="h-4 w-4 text-muted-foreground" />
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold text-green-600">0</div>
-                    <p className="text-xs text-muted-foreground">Sem conflitos de horário</p>
+                    <div className={`text-2xl font-bold ${(resumo?.conflitos ?? 0) > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                      {resumo?.conflitos ?? 0}
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      {(resumo?.conflitos ?? 0) > 0 ? 'Conflitos detectados na grade' : 'Sem conflitos de horário'}
+                    </p>
                   </CardContent>
                 </Card>
               </div>
@@ -1176,7 +1176,6 @@ function AppShell({ currentUser, onLogout }: { currentUser: SessaoUsuario; onLog
                         { label: 'Ofertas de Disciplina', view: 'ofertas' as View },
                         { label: 'Disponibilidade de Turmas', view: 'disponibilidade-turma' as View },
                         { label: 'Gerar Grade Horária', view: 'grade' as View },
-                        { label: 'Alertas da Grade', view: 'alertas' as View },
                       ].map(step => (
                         <Button
                           key={step.view}
@@ -1286,6 +1285,11 @@ function AppShell({ currentUser, onLogout }: { currentUser: SessaoUsuario; onLog
           {/* ── PROFESSORES ───────────────────────────────────────────── */}
           {currentView === 'professores' && (
             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6 max-w-6xl mx-auto">
+              {profLoadError && (
+                <div className="rounded-md border border-red-300 bg-red-50 dark:bg-red-950/20 dark:border-red-800 px-4 py-3 text-sm text-red-700 dark:text-red-400">
+                  {profLoadError}
+                </div>
+              )}
               <div className="flex items-center justify-between gap-4 flex-wrap">
                 <div>
                   <h2 className="text-2xl font-bold tracking-tight">Professores</h2>
@@ -2030,16 +2034,6 @@ function AppShell({ currentUser, onLogout }: { currentUser: SessaoUsuario; onLog
             </motion.div>
           )}
 
-          {/* ── ALERTAS DA GRADE ───────────────────────────────────────── */}
-          {currentView === 'alertas' && !isAdmin && !isProf && (
-            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
-              <div>
-                <h2 className="text-2xl font-bold tracking-tight">Alertas da Grade</h2>
-                <p className="text-muted-foreground">Conflitos, sobrecargas e demais inconsistências calculadas dinamicamente sobre a grade atual.</p>
-              </div>
-              <AlertasView />
-            </motion.div>
-          )}
 
           {/* ── RELATÓRIOS ─────────────────────────────────────────────── */}
           {currentView === 'relatorios' && !isProf && (

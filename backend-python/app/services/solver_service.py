@@ -43,7 +43,7 @@ from datetime import date, datetime
 from typing import Dict, List, Optional, Tuple
 
 from sqlalchemy.orm import Session
-from z3 import And, Bool, If, Not, Optimize, Or, Sum, is_true, sat
+from z3 import And, Bool, If, Not, Optimize, Or, Solver, Sum, is_true, sat, unknown
 
 from app.core.regras_carga import max_creditos_semanais
 from app.models.alocacao import Alocacao
@@ -466,4 +466,351 @@ def gerar_grade(semestre_id: int, db: Session, curso_id: Optional[int] = None) -
         sucesso=True,
         mensagem="Grade gerada com sucesso.",
         total_alocacoes=len(novas_alocacoes),
+    )
+
+
+# ==========================
+# PROPOSTAS (sem salvar)
+# ==========================
+
+import random as _random
+
+from app.schemas.horario import HorarioResponse
+from app.schemas.oferta_disciplina import OfertaDisciplinaResponse
+
+
+def _gerar_proposta_greedy(
+    ofertas: List[OfertaDisciplina],
+    elegiveis: Dict[int, List[Horario]],
+    seed: int,
+) -> List[Tuple[int, int]]:
+    """Greedy randomizado: embaralha ordem das ofertas e slots para gerar
+    uma grade alternativa respeitando restrições hard (sem double-booking)."""
+    rng = _random.Random(seed)
+    ocupado_prof: Dict[int, set] = defaultdict(set)
+    ocupado_turma: Dict[int, set] = defaultdict(set)
+    resultado: List[Tuple[int, int]] = []
+
+    shuffled = list(ofertas)
+    rng.shuffle(shuffled)
+
+    for o in shuffled:
+        disponiveis = [
+            h for h in elegiveis[o.id]
+            if h.id not in ocupado_prof.get(o.professor_id or -1, set())
+            and h.id not in ocupado_turma.get(o.turma_id, set())
+        ]
+        rng.shuffle(disponiveis)
+        escolhidos = disponiveis[: o.carga_horaria]
+        for h in escolhidos:
+            resultado.append((o.id, h.id))
+            if o.professor_id:
+                ocupado_prof[o.professor_id].add(h.id)
+            ocupado_turma[o.turma_id].add(h.id)
+
+    return resultado
+
+
+def _pares_para_itens(
+    pares: List[Tuple[int, int]],
+    oferta_map: Dict[int, OfertaDisciplina],
+    horario_map: Dict[int, Horario],
+):
+    """Converte pares (oferta_id, horario_id) em PropostaItemResponse."""
+    from app.schemas.alocacao import PropostaItemResponse
+
+    itens = []
+    for oferta_id, horario_id in pares:
+        oferta = oferta_map.get(oferta_id)
+        horario = horario_map.get(horario_id)
+        itens.append(
+            PropostaItemResponse(
+                oferta_id=oferta_id,
+                horario_id=horario_id,
+                oferta=OfertaDisciplinaResponse.model_validate(oferta) if oferta else None,
+                horario=HorarioResponse.model_validate(horario) if horario else None,
+            )
+        )
+    return itens
+
+
+def gerar_grade_propostas(
+    semestre_id: int,
+    db: Session,
+    curso_id: Optional[int] = None,
+):
+    """Gera 3 propostas de grade sem salvar no banco usando Z3 com enumeração de soluções.
+
+    Roda o solver Z3 até 3 vezes, bloqueando cada solução anterior para obter
+    distribuições distintas mas igualmente válidas. Se o Z3 não encontrar
+    solução suficiente (inviável), preenche com greedy randomizado como fallback.
+    """
+    query_turmas = db.query(Turma).filter(Turma.semestre_id == semestre_id)
+    if curso_id is not None:
+        query_turmas = query_turmas.filter(Turma.curso_id == curso_id)
+    turmas = query_turmas.all()
+    turma_ids = [t.id for t in turmas]
+    if not turma_ids:
+        raise ValueError("Nenhuma turma encontrada para este semestre.")
+
+    ofertas = db.query(OfertaDisciplina).filter(OfertaDisciplina.turma_id.in_(turma_ids)).all()
+    if not ofertas:
+        raise ValueError("Nenhuma oferta de disciplina cadastrada para este semestre.")
+
+    horarios = db.query(Horario).all()
+    if not horarios:
+        raise ValueError("Nenhum horário cadastrado no sistema.")
+
+    slot_codes = _slot_codes_por_horario(horarios)
+    oferta_map = {o.id: o for o in ofertas}
+    horario_map = {h.id: h for h in horarios}
+
+    disponibilidades_turma = (
+        db.query(DisponibilidadeTurma)
+        .filter(DisponibilidadeTurma.turma_id.in_(turma_ids))
+        .all()
+    )
+    disp_turma_map = {(d.turma_id, d.horario_id): d.disponivel for d in disponibilidades_turma}
+
+    professor_ids = {o.professor_id for o in ofertas if o.professor_id}
+    professores = (
+        {p.id: p for p in db.query(Professor).filter(Professor.id.in_(professor_ids)).all()}
+        if professor_ids
+        else {}
+    )
+    restricoes = (
+        db.query(Restricao)
+        .filter(Restricao.professor_id.in_(professor_ids), Restricao.semestre_id == semestre_id)
+        .all()
+        if professor_ids
+        else []
+    )
+    bloqueios_professor = {r.professor_id: set(r.horarios_bloqueados or []) for r in restricoes}
+
+    ocupados_externos: Dict[int, set] = defaultdict(set)
+    if professor_ids:
+        outras_alocacoes = (
+            db.query(OfertaDisciplina.professor_id, Alocacao.horario_id)
+            .join(Alocacao, Alocacao.oferta_id == OfertaDisciplina.id)
+            .join(Turma, OfertaDisciplina.turma_id == Turma.id)
+            .filter(
+                Turma.semestre_id == semestre_id,
+                Turma.id.notin_(turma_ids),
+                OfertaDisciplina.professor_id.in_(professor_ids),
+            )
+            .all()
+        )
+        for professor_id, horario_id in outras_alocacoes:
+            ocupados_externos[professor_id].add(horario_id)
+
+    preferencias_map = (
+        {
+            p.professor_id: p
+            for p in db.query(PreferenciaProfessor)
+            .filter(PreferenciaProfessor.professor_id.in_(professor_ids))
+            .all()
+        }
+        if professor_ids
+        else {}
+    )
+
+    def turma_disp(turma_id: int, horario_id: int) -> bool:
+        return disp_turma_map.get((turma_id, horario_id), True)
+
+    def prof_disp(professor_id: int, horario_id: int) -> bool:
+        if horario_id in ocupados_externos.get(professor_id, set()):
+            return False
+        codigo = slot_codes.get(horario_id)
+        return not (codigo and codigo in bloqueios_professor.get(professor_id, set()))
+
+    elegiveis: Dict[int, List[Horario]] = {}
+    for o in ofertas:
+        professor = professores.get(o.professor_id) if o.professor_id else None
+        if not o.professor_id or (professor and professor.afastado):
+            elegiveis[o.id] = []
+            continue
+        elegiveis[o.id] = [
+            h for h in horarios
+            if turma_disp(o.turma_id, h.id) and prof_disp(o.professor_id, h.id)
+        ]
+
+    insuficientes = [o for o in ofertas if len(elegiveis[o.id]) < o.carga_horaria]
+    if insuficientes:
+        descricao = ", ".join(f"oferta #{o.id}" for o in insuficientes)
+        raise ValueError(
+            f"Não há horários elegíveis suficientes para: {descricao}. "
+            "Revise disponibilidades, afastamentos e cadastro de horários."
+        )
+
+    # Variáveis compartilhadas entre os dois solvers abaixo
+    x = {
+        (o.id, h.id): Bool(f"xp_{o.id}_{h.id}")
+        for o in ofertas
+        for h in elegiveis[o.id]
+    }
+
+    def _hard(s) -> None:
+        """Adiciona as restrições hard ao solver/optimize s."""
+        for o in ofertas:
+            variaveis = [x[(o.id, h.id)] for h in elegiveis[o.id]]
+            s.add(Sum([If(v, 1, 0) for v in variaveis]) == o.carga_horaria)
+
+        ph: Dict[Tuple[int, int], list] = defaultdict(list)
+        for o in ofertas:
+            if not o.professor_id:
+                continue
+            for h in elegiveis[o.id]:
+                ph[(o.professor_id, h.id)].append(x[(o.id, h.id)])
+        for vs in ph.values():
+            if len(vs) > 1:
+                s.add(Sum([If(v, 1, 0) for v in vs]) <= 1)
+
+        th: Dict[Tuple[int, int], list] = defaultdict(list)
+        for o in ofertas:
+            for h in elegiveis[o.id]:
+                th[(o.turma_id, h.id)].append(x[(o.id, h.id)])
+        for vs in th.values():
+            if len(vs) > 1:
+                s.add(Sum([If(v, 1, 0) for v in vs]) <= 1)
+
+        for o in ofertas:
+            if not o.professor_id:
+                continue
+            pref = preferencias_map.get(o.professor_id)
+            if not pref or not pref.max_aulas_dia:
+                continue
+            pdm: Dict[str, list] = defaultdict(list)
+            for h in elegiveis[o.id]:
+                pdm[h.dia_semana].append(x[(o.id, h.id)])
+            for vs in pdm.values():
+                s.add(Sum([If(v, 1, 0) for v in vs]) <= pref.max_aulas_dia)
+
+    def _extrair_pares(modelo) -> List[Tuple[int, int]]:
+        return [
+            (o_id, h_id)
+            for (o_id, h_id), var in x.items()
+            if is_true(modelo.eval(var, model_completion=True))
+        ]
+
+    # ── Proposta A: Z3 Optimize — solução otimizada com todas as soft constraints ─
+    opt = Optimize()
+    opt.set("timeout", 5000)  # 5 s máximo; greedy cobre o fallback
+    _hard(opt)
+
+    prioridade = _calcular_prioridade_professores(professores)
+    for o in ofertas:
+        if not o.professor_id:
+            continue
+        pref = preferencias_map.get(o.professor_id)
+        if not pref:
+            continue
+        peso = prioridade.get(o.professor_id, 1)
+        for h in elegiveis[o.id]:
+            if pref.prefere_manha and h.turno != "MANHA":
+                opt.add_soft(Not(x[(o.id, h.id)]), weight=2 * peso)
+        if pref.prefere_aula_dupla:
+            por_dia_p: Dict[str, List[Horario]] = defaultdict(list)
+            for h in elegiveis[o.id]:
+                por_dia_p[h.dia_semana].append(h)
+            for lista in por_dia_p.values():
+                lista.sort(key=lambda hh: hh.hora_inicio)
+                for h1, h2 in zip(lista, lista[1:]):
+                    if h1.hora_fim == h2.hora_inicio:
+                        opt.add_soft(And(x[(o.id, h1.id)], x[(o.id, h2.id)]), weight=2 * peso)
+
+    _por_oferta_dia: Dict[Tuple[int, str], list] = defaultdict(list)
+    for o in ofertas:
+        for h in elegiveis[o.id]:
+            _por_oferta_dia[(o.id, h.dia_semana)].append(x[(o.id, h.id)])
+    for vars_dia in _por_oferta_dia.values():
+        if len(vars_dia) > 2:
+            opt.add_soft(Sum([If(v, 1, 0) for v in vars_dia]) <= 2, weight=2)
+
+    _prof_dia_slots: Dict[Tuple[int, str], Dict[int, list]] = {}
+    for o in ofertas:
+        if not o.professor_id:
+            continue
+        for h in elegiveis[o.id]:
+            key = (o.professor_id, h.dia_semana)
+            if key not in _prof_dia_slots:
+                _prof_dia_slots[key] = defaultdict(list)
+            _prof_dia_slots[key][h.id].append(x[(o.id, h.id)])
+
+    _horario_by_id: Dict[int, Horario] = {h.id: h for h in horarios}
+
+    for o in ofertas:
+        if not o.professor_id:
+            continue
+        pref = preferencias_map.get(o.professor_id)
+        if not pref or not pref.evitar_sexta:
+            continue
+        peso_p = prioridade.get(o.professor_id, 1)
+        for h in elegiveis[o.id]:
+            if h.dia_semana == "SEXTA":
+                opt.add_soft(Not(x[(o.id, h.id)]), weight=3 * peso_p)
+
+    for (professor_id, _dia), slots in _prof_dia_slots.items():
+        pref = preferencias_map.get(professor_id)
+        if not pref:
+            continue
+        peso_p = prioridade.get(professor_id, 1)
+        if pref.evitar_janelas:
+            horarios_dia = sorted(
+                [_horario_by_id[h_id] for h_id in slots],
+                key=lambda h: h.hora_inicio,
+            )
+            for i, h1 in enumerate(horarios_dia):
+                for h2 in horarios_dia[i + 1:]:
+                    if _gap_minutos(h1.hora_fim, h2.hora_inicio) > _JANELA_MAXIMA_MINUTOS:
+                        vs1, vs2 = slots[h1.id], slots[h2.id]
+                        occ1 = vs1[0] if len(vs1) == 1 else Or(vs1)
+                        occ2 = vs2[0] if len(vs2) == 1 else Or(vs2)
+                        opt.add_soft(Not(And(occ1, occ2)), weight=2 * peso_p)
+        if pref.min_aulas_dia:
+            all_vars = [v for vs in slots.values() for v in vs]
+            total = Sum([If(v, 1, 0) for v in all_vars])
+            opt.add_soft(Or(total == 0, total >= pref.min_aulas_dia), weight=2 * peso_p)
+
+    propostas_pares: List[List[Tuple[int, int]]] = []
+    if opt.check() == sat:
+        propostas_pares.append(_extrair_pares(opt.model()))
+
+    # ── Propostas B e C: Z3 SAT puro — variações rápidas bloqueando a anterior ─
+    sat_s = Solver()
+    sat_s.set("timeout", 2000)  # 2 s por check
+    _hard(sat_s)
+    if propostas_pares:
+        sat_s.add(Or([Not(x[par]) for par in propostas_pares[0] if par in x]))
+
+    for _ in range(2):
+        if sat_s.check() != sat:
+            break
+        pares = _extrair_pares(sat_s.model())
+        propostas_pares.append(pares)
+        if len(propostas_pares) < 3:
+            sat_s.add(Or([Not(x[par]) for par in pares if par in x]))
+
+    # Greedy como fallback se o Z3 não encontrou soluções suficientes
+    while len(propostas_pares) < 3:
+        seed = [0, 42, 137][len(propostas_pares)]
+        propostas_pares.append(_gerar_proposta_greedy(ofertas, elegiveis, seed=seed))
+
+    return [_pares_para_itens(pares, oferta_map, horario_map) for pares in propostas_pares]
+
+
+def aplicar_proposta(
+    semestre_id: int,
+    items: List[Tuple[int, int]],
+    db: Session,
+    curso_id: Optional[int] = None,
+) -> GerarGradeResponse:
+    """Limpa a grade do semestre e aplica a proposta escolhida."""
+    limpar_grade(semestre_id, db, curso_id=curso_id)
+    for oferta_id, horario_id in items:
+        db.add(Alocacao(oferta_id=oferta_id, horario_id=horario_id))
+    db.commit()
+    return GerarGradeResponse(
+        sucesso=True,
+        mensagem=f"Proposta aplicada com sucesso. {len(items)} aula(s) alocada(s).",
+        total_alocacoes=len(items),
     )
