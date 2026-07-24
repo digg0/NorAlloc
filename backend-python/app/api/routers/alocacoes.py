@@ -15,8 +15,10 @@ from app.schemas.alocacao import (
     AlocacaoCreate,
     AlocacaoResponse,
     AlocacaoUpdate,
+    AplicarPropostaRequest,
     GerarGradeResponse,
     MoverAlocacaoRequest,
+    PropostaItemResponse,
 )
 from app.services import solver_service, validacao_service
 
@@ -54,6 +56,51 @@ def _validar_turma_do_coordenador(db: Session, turma_id: int, curso_id_coordenad
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Esta turma não pertence ao seu curso.",
         )
+
+
+# ==========================
+# SOLVER  (antes de /{alocacao_id} para evitar 405 por match de path)
+# ==========================
+
+@router.post("/gerar-grade-propostas", response_model=List[List[PropostaItemResponse]])
+def gerar_grade_propostas(
+    semestre_id: int,
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(obter_usuario_atual),
+):
+    """Gera 3 propostas de grade distintas sem persistir, usando Z3 com enumeração de
+    soluções. Cada proposta bloqueia as atribuições da anterior para forçar uma
+    distribuição diferente; se o Z3 não encontrar soluções suficientes, completa
+    com greedy randomizado. O coordenador escolhe uma proposta via /aplicar-proposta."""
+    curso_id_coordenador = obter_curso_id_coordenador(usuario, db)
+    try:
+        return solver_service.gerar_grade_propostas(semestre_id, db, curso_id=curso_id_coordenador)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
+
+
+@router.post("/aplicar-proposta", response_model=GerarGradeResponse)
+def aplicar_proposta(
+    semestre_id: int,
+    body: AplicarPropostaRequest,
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(obter_usuario_atual),
+):
+    """Limpa a grade do semestre e aplica a proposta enviada no corpo."""
+    curso_id_coordenador = obter_curso_id_coordenador(usuario, db)
+    pares = [(item.oferta_id, item.horario_id) for item in body.items]
+    return solver_service.aplicar_proposta(semestre_id, pares, db, curso_id=curso_id_coordenador)
+
+
+@router.post("/gerar-grade", response_model=GerarGradeResponse)
+def gerar_grade(
+    semestre_id: int,
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(obter_usuario_atual),
+):
+    """Executa o solver Z3 e persiste a grade gerada para o semestre."""
+    curso_id_coordenador = obter_curso_id_coordenador(usuario, db)
+    return solver_service.gerar_grade(semestre_id, db, curso_id=curso_id_coordenador)
 
 
 # ==========================
@@ -128,25 +175,6 @@ def remover_alocacao(
     db.delete(alocacao)
     db.commit()
     return None
-
-
-# ==========================
-# SOLVER
-# ==========================
-
-@router.post("/gerar-grade", response_model=GerarGradeResponse)
-def gerar_grade(
-    semestre_id: int,
-    db: Session = Depends(get_db),
-    usuario: Usuario = Depends(obter_usuario_atual),
-):
-    """Executa o solver Z3 e persiste a grade gerada para o semestre.
-
-    Coordenador: gera apenas para as turmas do próprio curso (mas respeita
-    horários já ocupados por professores compartilhados em outros cursos).
-    """
-    curso_id_coordenador = obter_curso_id_coordenador(usuario, db)
-    return solver_service.gerar_grade(semestre_id, db, curso_id=curso_id_coordenador)
 
 
 @router.delete("/semestre/{semestre_id}")

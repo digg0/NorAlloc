@@ -20,6 +20,7 @@ from app.schemas.dashboard import (
     ProfessoresResumo,
     SemestreResumo,
 )
+from app.services import validacao_service
 
 router = APIRouter(prefix="/api/dashboard", tags=["Dashboard"])
 
@@ -46,6 +47,17 @@ def resumo_geral(db: Session = Depends(get_db)):
     semestres = db.query(Semestre).order_by(Semestre.data_inicio.desc()).all()
     atual = _semestre_atual(semestres)
 
+    conflitos = 0
+    if atual:
+        try:
+            alertas = validacao_service.validar_semestre(atual.id, db)
+            conflitos = sum(
+                1 for a in alertas
+                if a.tipo in ("CONFLITO_PROFESSOR", "CONFLITO_TURMA")
+            )
+        except Exception:
+            pass
+
     return ResumoGeralResponse(
         professores=ProfessoresResumo(
             total=len(professores),
@@ -60,6 +72,7 @@ def resumo_geral(db: Session = Depends(get_db)):
         ofertas=db.query(OfertaDisciplina).count(),
         semestres=[SemestreResumo.model_validate(s) for s in semestres],
         semestre_atual=SemestreResumo.model_validate(atual) if atual else None,
+        conflitos=conflitos,
     )
 
 

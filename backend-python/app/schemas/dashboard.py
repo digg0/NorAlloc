@@ -30,6 +30,7 @@ class ResumoGeralResponse(BaseModel):
     ofertas: int
     semestres: List[SemestreResumo]
     semestre_atual: Optional[SemestreResumo] = None
+    conflitos: int = 0
 
 
 class ResumoProfessorResponse(BaseModel):

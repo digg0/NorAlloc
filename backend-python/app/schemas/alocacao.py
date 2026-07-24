@@ -41,3 +41,17 @@ class AlertaResponse(BaseModel):
     descricao: str
     entidade_tipo: str
     entidade_id: int
+
+
+class PropostaItemResponse(BaseModel):
+    """Item de proposta de grade pré-confirmação — sem id de alocação real."""
+    oferta_id: int
+    horario_id: int
+    oferta: Optional[OfertaDisciplinaResponse] = None
+    horario: Optional[HorarioResponse] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class AplicarPropostaRequest(BaseModel):
+    items: list[AlocacaoCreate]

@@ -17,6 +17,7 @@ export interface ResumoGeral {
   ofertas: number;
   semestres: SemestreResumo[];
   semestre_atual: SemestreResumo | null;
+  conflitos: number;
 }
 
 export interface ResumoProfessor {
